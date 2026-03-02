@@ -200,7 +200,7 @@ function build_timeline(components: ParsedComponent[]): TimelineEntry[] {
     return timeline;
 }
 
-function find_primary_entry_by_start(primary_timeline: TimelineEntry[], secondaryStart: number): number {
+function find_primary_entry_by_start(primary_timeline: TimelineEntry[], secondary_start: number): number {
     let left = 0;
     let right = primary_timeline.length - 1;
 
@@ -208,11 +208,11 @@ function find_primary_entry_by_start(primary_timeline: TimelineEntry[], secondar
         const mid = Math.floor((left + right) / 2);
         const entry = primary_timeline[mid];
 
-        if (entry.start <= secondaryStart && secondaryStart < entry.end) {
+        if (entry.start <= secondary_start && secondary_start < entry.end) {
             return mid;
         }
 
-        if (secondaryStart < entry.start) {
+        if (secondary_start < entry.start) {
             right = mid - 1;
         } else {
             left = mid + 1;

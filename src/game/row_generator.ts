@@ -74,7 +74,10 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
     }
 
     if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
-        const single_slot = preceding_row.rectangles[0].slot_index;
+        const single_slot = preceding_row.rectangles[0]?.slot_index;
+        if (single_slot === undefined) {
+            return random_int(0, 1) === 0 ? [0, 2] : [1, 3];
+        }
 
         if (single_slot === 0 || single_slot === 2) {
             return [1, 3];
@@ -113,10 +116,12 @@ function generate_single_row(
     if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
         const occupied = preceding_row.rectangles.map(r => r.slot_index);
         const empty_slots = [0, 1, 2, 3].filter(s => !occupied.includes(s));
-        slot = empty_slots[random_int(0, empty_slots.length - 1)];
+        const chosen_slot = empty_slots[random_int(0, empty_slots.length - 1)];
+        slot = chosen_slot ?? 0;
     } else {
         const available_slots = [0, 1, 2, 3].filter(s => s !== last_single_slot);
-        slot = available_slots[random_int(0, available_slots.length - 1)];
+        const chosen_slot = available_slots[random_int(0, available_slots.length - 1)];
+        slot = chosen_slot ?? 0;
     }
 
     const rectangle = create_rectangle(slot, y_position, height, COLORS.BLACK, 1.0);
@@ -172,7 +177,8 @@ function generate_empty_row(row_index: number, y_position: number, height: numbe
 
 function get_random_row_type(): GeneratedRowType {
     const types = [GeneratedRowType.SINGLE, GeneratedRowType.DOUBLE, GeneratedRowType.EMPTY];
-    return types[random_int(0, types.length - 1)];
+    const chosen = types[random_int(0, types.length - 1)];
+    return chosen ?? GeneratedRowType.SINGLE;
 }
 
 /**

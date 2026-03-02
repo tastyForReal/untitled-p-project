@@ -1,5 +1,5 @@
-import { random_float, random_int } from "../utils/math_utils.js";
-import { ParticleData, COLORS, SCREEN_CONFIG } from "./types.js";
+import { random_float } from "../utils/math_utils.js";
+import { ParticleData, COLORS } from "./types.js";
 
 export function create_particle(x: number, y: number, color: string = COLORS.BLACK): ParticleData {
     const angle = random_float(0, Math.PI * 2);
@@ -51,7 +51,7 @@ export function update_particles(particles: ParticleData[], delta_time: number):
     return particles.filter(p => update_particle(p, delta_time));
 }
 
-export function clear_particles(particles: ParticleData[]): ParticleData[] {
+export function clear_particles(_particles: ParticleData[]): ParticleData[] {
     return [];
 }
 

@@ -4,30 +4,16 @@ import {
     RowData,
     RowType,
     RectangleData,
-    GameOverFlashState,
-    GameOverAnimationState,
     SCREEN_CONFIG,
     COLORS,
-    MusicMetadata,
+    NoteIndicatorData,
 } from "./types.js";
-import {
-    generate_all_rows,
-    find_active_row,
-    is_row_visible,
-    DEFAULT_ROW_COUNT,
-    create_rectangle,
-    calculate_column_width,
-} from "./row_generator.js";
+import { generate_all_rows, is_row_visible, DEFAULT_ROW_COUNT, create_rectangle } from "./row_generator.js";
 import { ParticleSystem } from "./particle_system.js";
 import { point_in_rect } from "../utils/math_utils.js";
 import { RowTypeResult, LevelData } from "./json_level_reader.js";
 import { get_audio_manager, AudioManager } from "./audio_manager.js";
-import {
-    NoteIndicatorData,
-    build_note_indicators,
-    consume_indicator_by_note_id,
-    get_active_indicators,
-} from "./note_indicator.js";
+import { build_note_indicators, consume_indicator_by_note_id, get_active_indicators } from "./note_indicator.js";
 
 export interface GameConfig {
     row_count: number;
@@ -77,7 +63,10 @@ function determine_double_slots(preceding_row: RowData | null): [number, number]
     }
 
     if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
-        const single_slot = preceding_row.rectangles[0].slot_index;
+        const single_slot = preceding_row.rectangles[0]?.slot_index;
+        if (single_slot === undefined) {
+            return Math.random() < 0.5 ? [0, 2] : [1, 3];
+        }
 
         if (single_slot === 0 || single_slot === 2) {
             return [1, 3];
@@ -126,6 +115,7 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
 
     for (let i = 0; i < level_rows.length; i++) {
         const row_data = level_rows[i];
+        if (!row_data) continue;
         const row_height = row_data.height_multiplier * SCREEN_CONFIG.BASE_ROW_HEIGHT;
         current_y -= row_height;
 
@@ -140,18 +130,20 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
             if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
                 const occupied = preceding_row.rectangles.map(r => r.slot_index);
                 const empty_slots = [0, 1, 2, 3].filter(s => !occupied.includes(s));
-                slot = empty_slots[Math.floor(Math.random() * empty_slots.length)];
+                const chosen_slot = empty_slots[Math.floor(Math.random() * empty_slots.length)];
+                slot = chosen_slot ?? 0;
             } else {
                 // Otherwise, choose any slot except the last single slot
                 const available_slots = [0, 1, 2, 3].filter(s => s !== last_single_slot);
-                slot = available_slots[Math.floor(Math.random() * available_slots.length)];
+                const chosen_slot = available_slots[Math.floor(Math.random() * available_slots.length)];
+                slot = chosen_slot ?? 0;
             }
 
             rectangles = [create_rectangle(slot, current_y, row_height, COLORS.BLACK, 1.0)];
             last_single_slot = slot;
         } else if (row_data.type === RowType.DOUBLE) {
             // Use preceding row to determine slots
-            const slots = determine_double_slots(preceding_row);
+            const slots = determine_double_slots(preceding_row ?? null);
             rectangles = slots.map(slot => create_rectangle(slot, current_y, row_height, COLORS.BLACK, 1.0));
         }
         // EMPTY rows have no rectangles
@@ -207,7 +199,10 @@ export class GameStateManager {
         const rows = generate_rows_from_level_data(level_data.rows);
 
         // Determine initial TPS from first music
-        const initial_tps = level_data.musics.length > 0 ? level_data.musics[0].tps : SCREEN_CONFIG.DEFAULT_TPS;
+        const initial_tps =
+            level_data.musics.length > 0
+                ? (level_data.musics[0]?.tps ?? SCREEN_CONFIG.DEFAULT_TPS)
+                : SCREEN_CONFIG.DEFAULT_TPS;
 
         // Load MIDI data to audio manager if available
         const is_midi_loaded = level_data.midi_json !== null;
@@ -355,6 +350,7 @@ export class GameStateManager {
         // Find which music section this row belongs to
         for (let i = 0; i < musics.length; i++) {
             const music = musics[i];
+            if (!music) continue;
             // start_row_index and end_row_index are already 0-based for level rows
             if (level_row_index >= music.start_row_index && level_row_index < music.end_row_index) {
                 if (this.game_data.current_music_index !== i) {
@@ -461,7 +457,7 @@ export class GameStateManager {
                             console.log(`[GameState] Game started via bot (long tile)`);
                         }
                         // Play sound when bot starts holding a long tile
-                        this.play_tile_sound(active_row);
+                        this.play_tile_sound();
                     }
                 }
             }
@@ -497,10 +493,12 @@ export class GameStateManager {
         const has_incomplete = this.game_data.rows.some(r => !r.is_completed);
         if (!has_incomplete && this.game_data.rows.length > 0) {
             const last_row = this.game_data.rows[this.game_data.rows.length - 1];
-            const last_row_screen_y = last_row.y_position + this.game_data.scroll_offset;
-            if (last_row_screen_y > SCREEN_CONFIG.HEIGHT) {
-                this.trigger_game_won();
-                return;
+            if (last_row) {
+                const last_row_screen_y = last_row.y_position + this.game_data.scroll_offset;
+                if (last_row_screen_y > SCREEN_CONFIG.HEIGHT) {
+                    this.trigger_game_won();
+                    return;
+                }
             }
         }
 
@@ -511,16 +509,18 @@ export class GameStateManager {
         if (visible_incomplete_rows.length > 0) {
             visible_incomplete_rows.sort((a, b) => b.y_position - a.y_position);
 
-            const active_row = visible_incomplete_rows[0];
-
-            this.game_data.active_row_index = active_row.row_index;
+            const new_active_row = visible_incomplete_rows[0];
+            if (new_active_row) {
+                this.game_data.active_row_index = new_active_row.row_index;
+            }
         }
     }
 
     get_active_row(): RowData | null {
         const active_index = this.game_data.active_row_index;
         if (active_index >= 0 && active_index < this.game_data.rows.length) {
-            return this.game_data.rows[active_index];
+            const row = this.game_data.rows[active_index];
+            return row ?? null;
         }
         return null;
     }
@@ -529,7 +529,7 @@ export class GameStateManager {
      * Plays the appropriate sound for a tile press.
      * If MIDI data is loaded, uses MIDI playback. Otherwise, plays random sample.
      */
-    private play_tile_sound(row: RowData): void {
+    private play_tile_sound(): void {
         // If MIDI data is loaded, don't play random samples
         // The MIDI playback is handled in update_scroll
         if (!this.game_data.is_midi_loaded) {
@@ -546,11 +546,15 @@ export class GameStateManager {
 
         if (is_down && this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
             const start_rect = start_row.rectangles[0];
-            const start_screen_y = start_rect.y + this.game_data.scroll_offset;
-            if (point_in_rect(screen_x, screen_y, start_rect.x, start_screen_y, start_rect.width, start_rect.height)) {
-                this.press_rectangle(start_rect, start_row, start_screen_y);
-                this.game_data.state = GameState.PLAYING;
-                return true;
+            if (start_rect) {
+                const start_screen_y = start_rect.y + this.game_data.scroll_offset;
+                if (
+                    point_in_rect(screen_x, screen_y, start_rect.x, start_screen_y, start_rect.width, start_rect.height)
+                ) {
+                    this.press_rectangle(start_rect, start_row, start_screen_y);
+                    this.game_data.state = GameState.PLAYING;
+                    return true;
+                }
             }
             return false;
         }
@@ -615,7 +619,7 @@ export class GameStateManager {
                     }
                     // Play sound for long black tiles
                     if (active_row.row_type !== RowType.START && !active_row.is_completed) {
-                        this.play_tile_sound(active_row);
+                        this.play_tile_sound();
                     }
                 } else {
                     console.log(`[GameState] Long tile press OUTSIDE hit zone - game NOT started`);
@@ -700,7 +704,7 @@ export class GameStateManager {
                 }
                 // Play sound for long black tiles
                 if (active_row.row_type !== RowType.START && !active_row.is_completed) {
-                    this.play_tile_sound(active_row);
+                    this.play_tile_sound();
                 }
                 return true;
             } else {
@@ -751,7 +755,7 @@ export class GameStateManager {
 
         // Play sound for black tiles
         if (row.row_type !== RowType.START && !row.is_completed) {
-            this.play_tile_sound(row);
+            this.play_tile_sound();
         }
         this.complete_rectangle(rect, row, screen_y, false);
     }
@@ -779,7 +783,7 @@ export class GameStateManager {
     private find_next_incomplete_row(current_index: number): RowData | null {
         for (let i = current_index + 1; i < this.game_data.rows.length; i++) {
             const row = this.game_data.rows[i];
-            if (!row.is_completed) {
+            if (row && !row.is_completed) {
                 return row;
             }
         }
@@ -788,8 +792,8 @@ export class GameStateManager {
 
     private trigger_game_over_misclicked(
         slot_index: number,
-        screen_x: number,
-        screen_y: number,
+        _screen_x: number,
+        _screen_y: number,
         active_row: RowData,
     ): void {
         this.game_data.state = GameState.GAME_OVER_MISCLICKED;

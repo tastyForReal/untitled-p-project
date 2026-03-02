@@ -1,6 +1,6 @@
 import { GPUContext } from "./gpu_context.js";
 import { hex_to_rgba } from "../utils/math_utils.js";
-import { RowData, RectangleData, ParticleData, SCREEN_CONFIG, COLORS } from "../game/types.js";
+import { RowData, RectangleData, ParticleData, SCREEN_CONFIG } from "../game/types.js";
 import { NoteIndicatorData } from "../game/note_indicator.js";
 
 interface RectangleVertex {
@@ -16,8 +16,6 @@ interface RectangleVertex {
 export class Renderer {
     private gpu_context: GPUContext;
     private rectangle_pipeline: GPURenderPipeline | null = null;
-    private line_pipeline: GPURenderPipeline | null = null;
-    private particle_pipeline: GPURenderPipeline | null = null;
     private vertex_buffer: GPUBuffer | null = null;
     private uniform_buffer: GPUBuffer | null = null;
     private bind_group: GPUBindGroup | null = null;
@@ -169,7 +167,6 @@ export class Renderer {
 
     private create_rectangle_vertices(rect: RectangleData, scroll_offset: number): RectangleVertex[] {
         const [r, g, b, _] = hex_to_rgba(rect.color);
-        const opacity = rect.opacity;
 
         const effective_opacity = rect.flash_state ? rect.opacity * 0.5 : rect.opacity;
 
@@ -221,7 +218,7 @@ export class Renderer {
                 const orig_p2x = center_x + radius * Math.cos(theta2);
                 const orig_p2y = center_y - radius * Math.sin(theta2);
 
-                const clip_point = (px: number, py: number) => {
+                const clip_point = (px: number, py: number): [number, number] => {
                     if (py > row_bottom) {
                         if (Math.abs(py - center_y) < 0.001) {
                             return [px, row_bottom];
@@ -323,7 +320,7 @@ export class Renderer {
             return;
         }
 
-        let all_vertices: RectangleVertex[] = [];
+        const all_vertices: RectangleVertex[] = [];
 
         const bg_vertices: RectangleVertex[] = [
             { position: [0, 0], color: [1, 1, 1, 1] },
@@ -378,13 +375,14 @@ export class Renderer {
         const vertex_data = new Float32Array(all_vertices.length * 6);
         for (let i = 0; i < all_vertices.length; i++) {
             const vertex = all_vertices[i];
+            if (!vertex) continue;
             const offset = i * 6;
-            vertex_data[offset] = vertex.position[0];
-            vertex_data[offset + 1] = vertex.position[1];
-            vertex_data[offset + 2] = vertex.color[0];
-            vertex_data[offset + 3] = vertex.color[1];
-            vertex_data[offset + 4] = vertex.color[2];
-            vertex_data[offset + 5] = vertex.color[3];
+            vertex_data[offset] = vertex.position[0] ?? 0;
+            vertex_data[offset + 1] = vertex.position[1] ?? 0;
+            vertex_data[offset + 2] = vertex.color[0] ?? 0;
+            vertex_data[offset + 3] = vertex.color[1] ?? 0;
+            vertex_data[offset + 4] = vertex.color[2] ?? 0;
+            vertex_data[offset + 5] = vertex.color[3] ?? 0;
         }
 
         const buffer_size = vertex_data.byteLength;

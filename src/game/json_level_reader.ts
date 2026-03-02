@@ -2,9 +2,8 @@ import {
     ParsedMessage,
     ParsedTrack,
     ParsedPart,
-    MidiNote,
-    MidiTrack,
     MidiJson,
+    MidiTrack,
     MidiTempo,
     NOTE_TO_MIDI,
     BASEBEATS_MAP,
@@ -20,7 +19,7 @@ import { RowType } from "./types.js";
  */
 export function get_note_number(note_name: string): number {
     if (note_name in NOTE_TO_MIDI) {
-        return NOTE_TO_MIDI[note_name];
+        return NOTE_TO_MIDI[note_name] ?? 0;
     }
     return 0;
 }
@@ -31,8 +30,9 @@ export function get_note_number(note_name: string): number {
 export function get_base_beats_multiplier(base_beats_str: string): number {
     // Handle both string and number inputs
     const key = String(base_beats_str);
-    if (key in BASEBEATS_MAP) {
-        return BASEBEATS_MAP[key];
+    const value = BASEBEATS_MAP[key];
+    if (value !== undefined) {
+        return value;
     }
     throw new Error(`Unknown baseBeats value: ${base_beats_str}`);
 }
@@ -162,6 +162,8 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
     for (let i = 0; i < score.length; i++) {
         const char = score[i];
 
+        if (char === undefined) continue;
+
         if (char === ".") {
             if (mode === 2) {
                 mode = 1;
@@ -244,33 +246,44 @@ export function parse_track(score: string, bpm: number, base_beats: number): Par
             if ((char === "<" || (char >= "0" && char <= "9")) && mode === 0) {
                 continue;
             }
-            if ((char === ">" || char === "{" || char === "}" || (char >= "0" && char <= "9")) && mode === 5) {
+            const lookAheadChar = score[i];
+            if (
+                lookAheadChar !== undefined &&
+                (lookAheadChar === ">" ||
+                    lookAheadChar === "{" ||
+                    lookAheadChar === "}" ||
+                    (lookAheadChar >= "0" && lookAheadChar <= "9")) &&
+                mode === 5
+            ) {
                 continue;
             }
 
             // Parse a token (note name or length code)
             let temp = "";
             while (true) {
-                temp += score[i];
+                const currentChar = score[i];
+                if (currentChar === undefined) break;
+                temp += currentChar;
                 i++;
+                const lookAhead = score[i];
                 if (
                     i === score.length ||
-                    score[i] === "." ||
-                    score[i] === "(" ||
-                    score[i] === ")" ||
-                    score[i] === "~" ||
-                    score[i] === "[" ||
-                    score[i] === "]" ||
-                    score[i] === "," ||
-                    score[i] === ";" ||
-                    score[i] === "<" ||
-                    score[i] === ">" ||
-                    score[i] === "@" ||
-                    score[i] === "%" ||
-                    score[i] === "!" ||
-                    score[i] === "$" ||
-                    score[i] === "^" ||
-                    score[i] === "&"
+                    lookAhead === "." ||
+                    lookAhead === "(" ||
+                    lookAhead === ")" ||
+                    lookAhead === "~" ||
+                    lookAhead === "[" ||
+                    lookAhead === "]" ||
+                    lookAhead === "," ||
+                    lookAhead === ";" ||
+                    lookAhead === "<" ||
+                    lookAhead === ">" ||
+                    lookAhead === "@" ||
+                    lookAhead === "%" ||
+                    lookAhead === "!" ||
+                    lookAhead === "$" ||
+                    lookAhead === "^" ||
+                    lookAhead === "&"
                 ) {
                     i--;
                     break;
@@ -361,20 +374,24 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                         messages.push({ type: 1, value: n });
                     }
                 }
-            } else if (notes[idx] === 3) {
-                let delay: number;
-                if (arp1 === 1) {
-                    delay = sdiv.divide(length, 10);
-                } else {
-                    delay = sdiv.divide(length, 10 * (arp1 - 1));
-                }
-                if (delay > length) {
-                    throw new Error("Fatal error with @");
-                }
-                length = length - delay;
-                messages.push({ type: 2, value: delay });
             } else {
-                messages.push({ type: 0, value: notes[idx] });
+                const noteVal = notes[idx];
+                if (noteVal === undefined) continue;
+                if (noteVal === 3) {
+                    let delay: number;
+                    if (arp1 === 1) {
+                        delay = sdiv.divide(length, 10);
+                    } else {
+                        delay = sdiv.divide(length, 10 * (arp1 - 1));
+                    }
+                    if (delay > length) {
+                        throw new Error("Fatal error with @");
+                    }
+                    length = length - delay;
+                    messages.push({ type: 2, value: delay });
+                } else {
+                    messages.push({ type: 0, value: noteVal });
+                }
             }
         }
     } else if (arp2 > 0) {
@@ -387,15 +404,19 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                         messages.push({ type: 1, value: n });
                     }
                 }
-            } else if (notes[idx] === 4) {
-                const delay = sdiv.divide(3 * length, 10 * arp2);
-                if (delay > length) {
-                    throw new Error("Fatal error with %");
-                }
-                length = length - delay;
-                messages.push({ type: 2, value: delay });
             } else {
-                messages.push({ type: 0, value: notes[idx] });
+                const noteVal = notes[idx];
+                if (noteVal === undefined) continue;
+                if (noteVal === 4) {
+                    const delay = sdiv.divide(3 * length, 10 * arp2);
+                    if (delay > length) {
+                        throw new Error("Fatal error with %");
+                    }
+                    length = length - delay;
+                    messages.push({ type: 2, value: delay });
+                } else {
+                    messages.push({ type: 0, value: noteVal });
+                }
             }
         }
     } else if (arp3 > 0) {
@@ -408,20 +429,34 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                         messages.push({ type: 1, value: n });
                     }
                 }
-            } else if (notes[idx] === 5) {
-                const delay = sdiv.divide(3 * length, 20 * arp3);
-                if (delay > length) {
-                    throw new Error("Fatal error with !");
-                }
-                length = length - delay;
-                messages.push({ type: 2, value: delay });
             } else {
-                messages.push({ type: 0, value: notes[idx] });
+                const noteVal = notes[idx];
+                if (noteVal === undefined) continue;
+                if (noteVal === 5) {
+                    const delay = sdiv.divide(3 * length, 20 * arp3);
+                    if (delay > length) {
+                        throw new Error("Fatal error with !");
+                    }
+                    length = length - delay;
+                    messages.push({ type: 2, value: delay });
+                } else {
+                    messages.push({ type: 0, value: noteVal });
+                }
             }
         }
     } else if (arp4 > 0) {
         // ^ operator (ornament)
-        if (notes.length !== 3 || notes[1] !== 6 || notes[0] < 20 || notes[2] < 20) {
+        const note0 = notes[0];
+        const note1 = notes[1];
+        const note2 = notes[2];
+        if (
+            notes.length !== 3 ||
+            note1 !== 6 ||
+            note0 === undefined ||
+            note0 < 20 ||
+            note2 === undefined ||
+            note2 < 20
+        ) {
             throw new Error("Problem with ornament");
         }
 
@@ -430,19 +465,28 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
 
         while (true) {
             // Play note
-            messages.push({ type: 0, value: notes[note_flip] });
+            const currentNote = notes[note_flip];
+            if (currentNote !== undefined) {
+                messages.push({ type: 0, value: currentNote });
+            }
 
             // Wait
             let delay = sdiv.divide(bpm32, 720);
             if (delay >= length) {
                 // End
                 messages.push({ type: 2, value: length });
-                messages.push({ type: 1, value: notes[note_flip] });
+                const endNote = notes[note_flip];
+                if (endNote !== undefined) {
+                    messages.push({ type: 1, value: endNote });
+                }
                 break;
             } else {
                 length = length - delay;
                 messages.push({ type: 2, value: delay });
-                messages.push({ type: 1, value: notes[note_flip] });
+                const midNote = notes[note_flip];
+                if (midNote !== undefined) {
+                    messages.push({ type: 1, value: midNote });
+                }
             }
 
             // Flip between first and third note
@@ -457,7 +501,8 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
         const temp_notes: number[] = [];
 
         for (let idx = 0; idx <= notes.length; idx++) {
-            if (idx === notes.length || notes[idx] === 2) {
+            const noteVal = notes[idx];
+            if (idx === notes.length || noteVal === 2) {
                 // Flush accumulated notes
                 for (const tn of temp_notes) {
                     messages.push({ type: 0, value: tn });
@@ -467,8 +512,8 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                     messages.push({ type: 1, value: tn });
                 }
                 temp_notes.length = 0;
-            } else {
-                temp_notes.push(notes[idx]);
+            } else if (noteVal !== undefined) {
+                temp_notes.push(noteVal);
             }
         }
     }
@@ -486,8 +531,9 @@ export function calculate_track_length_diff(messages1: ParsedMessage[], messages
 
     while (a < msg1.length || b < msg2.length) {
         while (a < msg1.length) {
-            if (msg1[a].value !== 0 && msg1[a].type === 2) {
-                msg1[a] = { type: 2, value: msg1[a].value - 1 };
+            const msg = msg1[a];
+            if (msg && msg.value !== 0 && msg.type === 2) {
+                msg1[a] = { type: 2, value: msg.value - 1 };
                 diff++;
                 break;
             } else {
@@ -495,8 +541,9 @@ export function calculate_track_length_diff(messages1: ParsedMessage[], messages
             }
         }
         while (b < msg2.length) {
-            if (msg2[b].value !== 0 && msg2[b].type === 2) {
-                msg2[b] = { type: 2, value: msg2[b].value - 1 };
+            const msg = msg2[b];
+            if (msg && msg.value !== 0 && msg.type === 2) {
+                msg2[b] = { type: 2, value: msg.value - 1 };
                 diff--;
                 break;
             } else {
@@ -519,8 +566,9 @@ export function shrink_track(messages: ParsedMessage[], amount: number): void {
 
     // Process from end to beginning
     for (let i = messages.length; i > 0 && remaining > 0; i--) {
-        if (messages[i - 1].type === 2) {
-            const diff = remaining - messages[i - 1].value;
+        const msg = messages[i - 1];
+        if (msg && msg.type === 2) {
+            const diff = remaining - msg.value;
             if (diff >= 0) {
                 remaining = diff;
                 messages[i - 1] = { type: 2, value: 0 };
@@ -538,13 +586,16 @@ export function shrink_track(messages: ParsedMessage[], amount: number): void {
     // Clean up orphaned notes
     const note_on_stack: number[] = [];
     for (let i = 0; i < messages.length; i++) {
-        if (messages[i].type === 2 && messages[i].value > 0) {
+        const msg = messages[i];
+        if (!msg) continue;
+        if (msg.type === 2 && msg.value > 0) {
             note_on_stack.length = 0;
-        } else if (messages[i].type === 0) {
+        } else if (msg.type === 0) {
             note_on_stack.push(i);
-        } else if (messages[i].type === 1) {
+        } else if (msg.type === 1) {
             for (const note_on_idx of note_on_stack) {
-                if (messages[note_on_idx].type === 0 && messages[note_on_idx].value === messages[i].value) {
+                const onMsg = messages[note_on_idx];
+                if (onMsg && onMsg.type === 0 && onMsg.value === msg.value) {
                     messages[i] = { type: 3, value: 0 };
                     messages[note_on_idx] = { type: 3, value: 0 };
                     break;
@@ -563,12 +614,16 @@ export function verify_track_length(tracks: ParsedTrack[]): void {
     }
 
     for (let i = 1; i < tracks.length; i++) {
-        const diff = calculate_track_length_diff(tracks[0].messages, tracks[i].messages);
+        const track0 = tracks[0];
+        const trackI = tracks[i];
+        if (!track0 || !trackI) continue;
+
+        const diff = calculate_track_length_diff(track0.messages, trackI.messages);
 
         if (diff < 0) {
-            shrink_track(tracks[i].messages, -diff);
+            shrink_track(trackI.messages, -diff);
         } else if (diff > 0) {
-            tracks[i].messages.push({ type: 2, value: diff });
+            trackI.messages.push({ type: 2, value: diff });
         }
     }
 }
@@ -587,6 +642,7 @@ export function parse_song(
     for (let p = 0; p < musics.length; p++) {
         try {
             const music = musics[p];
+            if (!music) continue;
             const base_beats_multiplier = get_base_beats_multiplier(String(music.baseBeats));
 
             // Use music.bpm if defined, otherwise fall back to base_bpm
@@ -613,8 +669,10 @@ export function parse_song(
 
             for (let t = 0; t < music.scores.length; t++) {
                 try {
-                    console.log(`  - Parsing track ${t}: score length = ${music.scores[t].length} chars`);
-                    const track = parse_track(music.scores[t], part.bpm, base_beats_multiplier);
+                    const score = music.scores[t];
+                    if (!score) continue;
+                    console.log(`  - Parsing track ${t}: score length = ${score.length} chars`);
+                    const track = parse_track(score, part.bpm, base_beats_multiplier);
                     console.log(`    - Track parsed: ${track.messages.length} messages`);
                     part.tracks.push(track);
                 } catch (e) {
@@ -655,6 +713,7 @@ function align_tracks_across_parts(parts: ParsedPart[]): ParsedPart[] {
     for (const part of parts) {
         while (part.tracks.length < max_tracks) {
             const last_track = part.tracks[part.tracks.length - 1];
+            if (!last_track) break;
             const new_track: ParsedTrack = {
                 base_beats: last_track.base_beats,
                 messages: last_track.messages.map(msg => {
@@ -718,6 +777,7 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
 
     for (let part_idx = 0; part_idx < aligned_parts.length; part_idx++) {
         const part = aligned_parts[part_idx];
+        if (!part) continue;
 
         // Set tempo at the current position
         // The conversion from effective BPM to actual BPM is: actual_bpm = effective_bpm / 30
@@ -736,6 +796,7 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
         // Process each track in the part
         for (let track_idx = 0; track_idx < part.tracks.length; track_idx++) {
             const track = part.tracks[track_idx];
+            if (!track) continue;
 
             // Get or create the output track
             let output_track = tracks[track_idx];
@@ -749,7 +810,7 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
 
             // Convert messages to notes with tick scaling
             const notes_before = output_track.notes.length;
-            process_track_messages(track.messages, output_track, current_ticks, tick_scale, tempos);
+            process_track_messages(track.messages, output_track, current_ticks, tick_scale);
             console.log(`    - Track ${track_idx}: added ${output_track.notes.length - notes_before} notes`);
         }
 
@@ -771,7 +832,9 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
     // Log final statistics
     let total_notes = 0;
     for (const track of tracks) {
-        total_notes += track.notes.length;
+        if (track) {
+            total_notes += track.notes.length;
+        }
     }
     console.log(
         `[MidiParser] Final result: ${tracks.length} tracks, ${total_notes} total notes, ${tempos.length} tempo changes`,
@@ -794,7 +857,6 @@ function process_track_messages(
     output_track: MidiTrack,
     start_ticks: number,
     tick_scale: number,
-    _tempos: MidiTempo[],
 ): void {
     let current_ticks = start_ticks;
     const active_notes: Map<number, number> = new Map(); // note number -> start ticks
@@ -806,18 +868,20 @@ function process_track_messages(
                 break;
 
             case 1: // Note off
-                const note_start = active_notes.get(msg.value);
-                if (note_start !== undefined) {
-                    output_track.notes.push({
-                        midi: msg.value,
-                        ticks: Math.round(note_start * tick_scale),
-                        time: 0, // Will be calculated later
-                        duration: 0, // Will be calculated later
-                        duration_ticks: Math.round((current_ticks - note_start) * tick_scale),
-                        velocity: 100 / 127,
-                        note_off_velocity: 64 / 127,
-                    });
-                    active_notes.delete(msg.value);
+                {
+                    const note_start = active_notes.get(msg.value);
+                    if (note_start !== undefined) {
+                        output_track.notes.push({
+                            midi: msg.value,
+                            ticks: Math.round(note_start * tick_scale),
+                            time: 0, // Will be calculated later
+                            duration: 0, // Will be calculated later
+                            duration_ticks: Math.round((current_ticks - note_start) * tick_scale),
+                            velocity: 100 / 127,
+                            note_off_velocity: 64 / 127,
+                        });
+                        active_notes.delete(msg.value);
+                    }
                 }
                 break;
 
@@ -839,6 +903,7 @@ function calculate_times(tracks: MidiTrack[], tempos: MidiTempo[], ppq: number):
     tempos.sort((a, b) => a.ticks - b.ticks);
 
     for (const track of tracks) {
+        if (!track) continue;
         for (const note of track.notes) {
             note.time = ticks_to_seconds(note.ticks, tempos, ppq);
             note.duration = ticks_to_seconds(note.ticks + note.duration_ticks, tempos, ppq) - note.time;
@@ -861,10 +926,12 @@ function calculate_tempo_times(tempos: MidiTempo[], ppq: number): void {
 function ticks_to_seconds(ticks: number, tempos: MidiTempo[], ppq: number): number {
     let time = 0;
     let current_ticks = 0;
-    let current_bpm = tempos.length > 0 ? tempos[0].bpm : 120;
+    const firstTempo = tempos[0];
+    let current_bpm = firstTempo ? firstTempo.bpm : 120;
 
     for (let i = 0; i < tempos.length; i++) {
         const tempo = tempos[i];
+        if (!tempo) continue;
         if (tempo.ticks >= ticks) {
             break;
         }
@@ -896,6 +963,7 @@ export function convert_raw_to_midi_json(
 
     for (let i = 0; i < musics.length; i++) {
         const music = musics[i];
+        if (!music) continue;
         console.log(
             `[MidiParser] Music ${i}: BPM=${music.bpm ?? "undefined"}, baseBeats=${music.baseBeats}, scores=${music.scores.length}`,
         );
@@ -906,6 +974,7 @@ export function convert_raw_to_midi_json(
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
+        if (!part) continue;
         console.log(
             `[MidiParser] Part ${i}: BPM=${part.bpm.toFixed(2)}, base_beats=${part.base_beats}, tracks=${part.tracks.length}`,
         );
@@ -954,7 +1023,7 @@ interface ParsedComponent {
     original_type: RowType;
 }
 
-const DURATION_MAP = {
+const DURATION_MAP: Record<string, number> = {
     H: 256,
     I: 128,
     J: 64,
@@ -964,9 +1033,9 @@ const DURATION_MAP = {
     N: 4,
     O: 2,
     P: 1,
-} as const;
+};
 
-const REST_MAP = {
+const REST_MAP: Record<string, number> = {
     Q: 256,
     R: 128,
     S: 64,
@@ -976,7 +1045,7 @@ const REST_MAP = {
     W: 4,
     X: 2,
     Y: 1,
-} as const;
+};
 
 const COMBINED_MAP: Record<string, number> = { ...DURATION_MAP, ...REST_MAP };
 
@@ -992,11 +1061,11 @@ function extract_letters(str: string, map: Record<string, number>): number {
 }
 
 function extract_duration_letters(str: string): number {
-    return extract_letters(str, DURATION_MAP as Record<string, number>);
+    return extract_letters(str, DURATION_MAP);
 }
 
 function extract_rest_letters(str: string): number {
-    return extract_letters(str, REST_MAP as Record<string, number>);
+    return extract_letters(str, REST_MAP);
 }
 
 function extract_all_letters(str: string): number {
@@ -1006,7 +1075,7 @@ function extract_all_letters(str: string): number {
 function is_only_rest_letters(str: string): boolean {
     if (str.length === 0) return false;
     for (const char of str) {
-        if (REST_MAP[char as keyof typeof REST_MAP] === undefined) {
+        if (REST_MAP[char] === undefined) {
             return false;
         }
     }
@@ -1022,8 +1091,8 @@ function parse_component(component: string): ParsedComponent {
 
     const group_match = trimmed.match(/^(\d)<(.+)>$/);
     if (group_match) {
-        const type_id = parseInt(group_match[1], 10);
-        const group_content = group_match[2];
+        const type_id = parseInt(group_match[1] ?? "0", 10);
+        const group_content = group_match[2] ?? "";
 
         const duration = extract_all_letters(group_content);
         const original_type = type_id === 5 ? RowType.DOUBLE : RowType.SINGLE;
@@ -1047,9 +1116,14 @@ function split_score(score: string): string[] {
     while (i < score.length) {
         const char = score[i];
 
-        if (score[i] === "<") {
+        if (char === undefined) {
+            i++;
+            continue;
+        }
+
+        if (char === "<") {
             if (current.length > 0 && /\d$/.test(current)) {
-                const digit = current.slice(-1);
+                const digit = current.slice(-1) ?? "";
                 current = current.slice(0, -1);
 
                 if (current.trim()) {
@@ -1060,14 +1134,17 @@ function split_score(score: string): string[] {
                 let depth = 0;
                 let group_str = digit;
                 while (i < score.length) {
-                    if (score[i] === "<") depth++;
-                    else if (score[i] === ">") depth--;
-                    group_str += score[i];
+                    const c = score[i];
+                    if (c === undefined) break;
+                    if (c === "<") depth++;
+                    else if (c === ">") depth--;
+                    group_str += c;
                     i++;
                     if (depth === 0) break;
                 }
                 components.push(group_str);
-                if (score[i] === ",") i++;
+                const nextChar = score[i];
+                if (nextChar === ",") i++;
             } else {
                 current += char;
                 i++;
@@ -1109,6 +1186,7 @@ function build_timeline(components: ParsedComponent[]): TimelineEntry[] {
 
     for (let i = 0; i < components.length; i++) {
         const comp = components[i];
+        if (!comp) continue;
         timeline.push({
             start: current_time,
             end: current_time + comp.duration,
@@ -1128,6 +1206,7 @@ function find_primary_entry_by_start(primary_timeline: TimelineEntry[], secondar
     while (left <= right) {
         const mid = Math.floor((left + right) / 2);
         const entry = primary_timeline[mid];
+        if (!entry) return -1;
 
         if (entry.start <= secondary_start && secondary_start < entry.end) {
             return mid;
@@ -1156,7 +1235,7 @@ function blend_tracks(primary_timeline: TimelineEntry[], secondary_scores: strin
 
                 if (primary_index !== -1) {
                     const prim_entry = primary_timeline[primary_index];
-                    if (prim_entry.is_rest) {
+                    if (prim_entry && prim_entry.is_rest) {
                         blended_indices.add(prim_entry.index);
                     }
                 }
@@ -1199,7 +1278,10 @@ function process_music(music: { id: number; baseBeats: number; scores: string[] 
 
     if (music.scores.length === 0) return [];
 
-    const primary_components = parse_score(music.scores[0]);
+    const primary_score = music.scores[0];
+    if (!primary_score) return [];
+
+    const primary_components = parse_score(primary_score);
     const primary_timeline = build_timeline(primary_components);
 
     const secondary_scores = music.scores.slice(1);
@@ -1249,45 +1331,33 @@ function validate_music_input(data: unknown): MusicInputFile {
 
     const input = data as Record<string, unknown>;
 
-    if (typeof input.baseBpm !== "number") {
+    const baseBpm = input["baseBpm"];
+    if (typeof baseBpm !== "number") {
         throw new Error('Invalid JSON structure: "baseBpm" must be a number and is required');
     }
 
-    if (!input.musics || !Array.isArray(input.musics)) {
+    const musics = input["musics"];
+    if (!musics || !Array.isArray(musics)) {
         throw new Error('Invalid JSON structure: "musics" array is required');
     }
 
-    for (const music of input.musics) {
-        if (typeof music.id !== "number") {
+    for (const music of musics) {
+        if (!music || typeof music !== "object") {
+            throw new Error("Invalid music entry: expected an object");
+        }
+        const m = music as Record<string, unknown>;
+        if (typeof m["id"] !== "number") {
             throw new Error('Invalid music entry: "id" must be a number');
         }
-        if (typeof music.baseBeats !== "number") {
+        if (typeof m["baseBeats"] !== "number") {
             throw new Error('Invalid music entry: "baseBeats" must be a number');
         }
-        if (!Array.isArray(music.scores)) {
+        if (!Array.isArray(m["scores"])) {
             throw new Error('Invalid music entry: "scores" must be an array');
         }
     }
 
     return data as MusicInputFile;
-}
-
-/**
- * Process all musics and return a map of id -> rows
- */
-function process_all_musics(data: MusicInputFile): Map<number, RowTypeResult[]> {
-    const results = new Map<number, RowTypeResult[]>();
-    for (const music of data.musics) {
-        results.set(
-            music.id,
-            process_music({
-                id: music.id,
-                baseBeats: music.baseBeats,
-                scores: music.scores,
-            }),
-        );
-    }
-    return results;
 }
 
 /**
@@ -1299,7 +1369,8 @@ export function parse_music_json_string(json_string: string): MusicOutput[] {
 
     const results: MusicOutput[] = [];
 
-    for (const music of data.musics) {
+    const musics = (data as MusicInputFile).musics;
+    for (const music of musics) {
         results.push({
             id: music.id,
             rows: process_music({
@@ -1338,149 +1409,92 @@ export function process_music_input_data(data: MusicInputFile): MusicOutput[] {
  * TPS = bpm / baseBeats / 60
  */
 function calculate_tps(music: MusicEntry, base_bpm: number): number {
-    const bpm = music.bpm ?? base_bpm;
+    const bpm = music.bpm !== undefined ? music.bpm : base_bpm;
     return bpm / music.baseBeats / 60;
 }
 
 /**
- * Process all musics from a JSON file, sort by id ascending,
- * combine all rows into a single array, and track TPS metadata.
- * This is the main function for level loading.
+ * Opens a file picker and loads a music JSON file
  */
-export function parse_and_combine_musics(json_string: string): LevelData {
-    const data = JSON.parse(json_string);
-    validate_music_input(data);
-
-    const base_bpm = data.baseBpm;
-
-    // Sort musics by id in ascending order
-    const sorted_musics = [...data.musics].sort((a, b) => a.id - b.id);
-
-    // Combine all rows from all musics and track metadata
-    const combined_rows: RowTypeResult[] = [];
-    const musics_metadata: MusicMetadata[] = [];
-
-    for (const music of sorted_musics) {
-        const rows = process_music({
-            id: music.id,
-            baseBeats: music.baseBeats,
-            scores: music.scores,
-        });
-        const start_row_index = combined_rows.length;
-        const tps = calculate_tps(music, base_bpm);
-
-        combined_rows.push(...rows);
-
-        musics_metadata.push({
-            id: music.id,
-            tps,
-            start_row_index,
-            end_row_index: combined_rows.length,
-            row_count: rows.length,
-        });
-    }
-
-    // Convert raw JSON to formatted MIDI JSON for playback
-    let midi_json: MidiJson | null = null;
-    try {
-        console.log(`[LevelLoader] Starting MIDI conversion for ${data.musics.length} music parts...`);
-        console.log(`[LevelLoader] Using baseBpm: ${base_bpm} as fallback for missing BPM values`);
-        midi_json = convert_raw_to_midi_json(data.musics, base_bpm);
-        console.log(`[LevelLoader] MIDI conversion successful!`);
-        console.log(`  - Total tracks: ${midi_json.tracks.length}`);
-        console.log(`  - Total tempo changes: ${midi_json.header.tempos.length}`);
-
-        // Log some timing info
-        let max_time = 0;
-        let total_notes = 0;
-        for (const track of midi_json.tracks) {
-            total_notes += track.notes.length;
-            for (const note of track.notes) {
-                const note_end = note.time + note.duration;
-                if (note_end > max_time) {
-                    max_time = note_end;
-                }
-            }
-        }
-        console.log(`  - Total notes: ${total_notes}`);
-        console.log(`  - Duration: ${max_time.toFixed(2)}s`);
-    } catch (error) {
-        console.error(`[LevelLoader] Failed to convert music to MIDI format:`);
-        console.error(error);
-    }
-
-    return {
-        rows: combined_rows,
-        musics: musics_metadata,
-        base_bpm,
-        midi_json,
-    };
-}
-
-/**
- * Browser-compatible file reader using FileReader API
- * Reads a JSON file and returns a promise with complete level data
- */
-export function read_music_file_from_browser(file: File): Promise<LevelData> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-
-        reader.onload = event => {
-            try {
-                const json_string = event.target?.result as string;
-                const level_data = parse_and_combine_musics(json_string);
-                resolve(level_data);
-            } catch (error) {
-                reject(error);
-            }
-        };
-
-        reader.onerror = () => {
-            reject(new Error("Failed to read file"));
-        };
-
-        reader.readAsText(file);
-    });
-}
-
-/**
- * Creates a file input element and triggers file selection dialog
- * Returns a promise that resolves with complete level data
- */
-export function select_and_load_music_file(): Promise<LevelData> {
+export async function select_and_load_music_file(): Promise<LevelData> {
     return new Promise((resolve, reject) => {
         const input = document.createElement("input");
         input.type = "file";
         input.accept = ".json,application/json";
 
-        input.onchange = async event => {
-            const file = (event.target as HTMLInputElement).files?.[0];
+        input.onchange = async (event: Event) => {
+            const target = event.target as HTMLInputElement;
+            const file = target.files?.[0];
+
             if (!file) {
                 reject(new Error("No file selected"));
                 return;
             }
 
             try {
-                const level_data = await read_music_file_from_browser(file);
+                const text = await file.text();
+                const json = JSON.parse(text);
+                const level_data = load_level_from_json(json);
                 resolve(level_data);
             } catch (error) {
-                reject(error);
+                reject(error instanceof Error ? error : new Error("Failed to load file"));
             }
-        };
-
-        input.oncancel = () => {
-            reject(new Error("File selection cancelled"));
         };
 
         input.click();
     });
 }
 
-export {
-    process_music,
-    process_all_musics,
-    validate_music_input,
-    extract_duration_letters,
-    extract_rest_letters,
-    split_score,
-};
+/**
+ * Loads level data from a parsed JSON object
+ */
+export function load_level_from_json(json: unknown): LevelData {
+    const data = validate_music_input(json);
+
+    // Process all musics
+    const all_rows: RowTypeResult[] = [];
+    const musics_metadata: MusicMetadata[] = [];
+
+    let current_row_index = 0;
+
+    for (const music of data.musics) {
+        const rows = process_music({
+            id: music.id,
+            baseBeats: music.baseBeats,
+            scores: music.scores,
+        });
+
+        const tps = calculate_tps(music, data.baseBpm);
+
+        musics_metadata.push({
+            id: music.id,
+            tps,
+            start_row_index: current_row_index,
+            end_row_index: current_row_index + rows.length,
+            row_count: rows.length,
+        });
+
+        all_rows.push(...rows);
+        current_row_index += rows.length;
+    }
+
+    // Convert to MIDI JSON for audio playback
+    const music_data = data.musics.map(m => {
+        const result: { bpm?: string | number; baseBeats: string | number; scores: string[] } = {
+            baseBeats: m.baseBeats,
+            scores: m.scores,
+        };
+        if (m.bpm !== undefined) {
+            result.bpm = m.bpm;
+        }
+        return result;
+    });
+    const midi_json = convert_raw_to_midi_json(music_data, data.baseBpm);
+
+    return {
+        rows: all_rows,
+        musics: musics_metadata,
+        base_bpm: data.baseBpm,
+        midi_json,
+    };
+}

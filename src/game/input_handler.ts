@@ -46,11 +46,12 @@ export class InputHandler {
 
             event.preventDefault();
 
-            let clientX, clientY;
+            let clientX: number, clientY: number;
             if (window.TouchEvent && event instanceof TouchEvent) {
-                if (event.changedTouches.length > 0) {
-                    clientX = event.changedTouches[0].clientX;
-                    clientY = event.changedTouches[0].clientY;
+                const touch = event.changedTouches[0];
+                if (touch) {
+                    clientX = touch.clientX;
+                    clientY = touch.clientY;
                 } else {
                     return;
                 }
@@ -102,7 +103,7 @@ export class InputHandler {
                 event.preventDefault();
                 if (event.repeat) return; // Ignore key repeat
                 const slot_index = KEY_SLOT_MAP[key];
-                if (this.on_slot_input) {
+                if (slot_index !== undefined && this.on_slot_input) {
                     const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
                     const screen_x = slot_index * column_width + column_width / 2;
                     const screen_y = SCREEN_CONFIG.HEIGHT / 2;
@@ -117,7 +118,7 @@ export class InputHandler {
             if (key in KEY_SLOT_MAP) {
                 event.preventDefault();
                 const slot_index = KEY_SLOT_MAP[key];
-                if (this.on_slot_input) {
+                if (slot_index !== undefined && this.on_slot_input) {
                     const column_width = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
                     const screen_x = slot_index * column_width + column_width / 2;
                     const screen_y = SCREEN_CONFIG.HEIGHT / 2;

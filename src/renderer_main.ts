@@ -5,10 +5,13 @@ import { get_audio_manager } from "./game/audio_manager.js";
 
 async function main(): Promise<void> {
     setTimeout(() => {
-        (document.querySelector(".canvas_instructions") as HTMLElement).style.display = "none";
+        const instructions = document.querySelector(".canvas_instructions") as HTMLElement | null;
+        if (instructions) {
+            instructions.style.display = "none";
+        }
     }, 5000);
 
-    const canvas = document.getElementById("game_canvas") as HTMLCanvasElement;
+    const canvas = document.getElementById("game_canvas") as HTMLCanvasElement | null;
 
     if (!canvas) {
         console.error("Canvas element not found");
@@ -85,7 +88,8 @@ function setup_level_loader(game_controller: GameController): void {
 
                 if (load_status) {
                     const music_count = level_data.musics.length;
-                    const initial_tps = level_data.musics.length > 0 ? level_data.musics[0].tps.toFixed(2) : "default";
+                    const first_music = level_data.musics[0];
+                    const initial_tps = first_music ? first_music.tps.toFixed(2) : "default";
 
                     load_status.textContent = `Level loaded! (${level_data.rows.length} rows, ${music_count} music(s), TPS: ${initial_tps})`;
                     load_status.className = "load_status success";
@@ -101,7 +105,7 @@ function setup_level_loader(game_controller: GameController): void {
                     `Loaded level with ${level_data.rows.length} rows from ${level_data.musics.length} music(s)`,
                 );
                 console.log(`Base BPM: ${level_data.base_bpm}`);
-                level_data.musics.forEach((m, i) => {
+                level_data.musics.forEach(m => {
                     console.log(
                         `  Music ${m.id}: TPS=${m.tps.toFixed(2)}, rows=${m.row_count}, range=[${m.start_row_index}, ${m.end_row_index})`,
                     );

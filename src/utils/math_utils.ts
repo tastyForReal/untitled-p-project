@@ -19,7 +19,13 @@ export function hex_to_rgba(hex: string): [number, number, number, number] {
     if (!result) {
         return [0, 0, 0, 1];
     }
-    return [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255, 1.0];
+    const r = result[1];
+    const g = result[2];
+    const b = result[3];
+    if (!r || !g || !b) {
+        return [0, 0, 0, 1];
+    }
+    return [parseInt(r, 16) / 255, parseInt(g, 16) / 255, parseInt(b, 16) / 255, 1.0];
 }
 
 export function hex_to_rgba_with_alpha(hex: string, alpha: number): [number, number, number, number] {

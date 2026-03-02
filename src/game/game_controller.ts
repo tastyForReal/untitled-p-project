@@ -2,7 +2,7 @@ import { GPUContext } from "../renderers/gpu_context.js";
 import { Renderer } from "../renderers/renderer.js";
 import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from "./game_state.js";
 import { InputHandler } from "./input_handler.js";
-import { SCREEN_CONFIG, GameState, InputType } from "./types.js";
+import { GameState, InputType } from "./types.js";
 import { LevelData, RowTypeResult } from "./json_level_reader.js";
 
 /**
@@ -13,7 +13,6 @@ export class GameController {
     private renderer: Renderer;
     private game_state: GameStateManager;
     private input_handler: InputHandler;
-    private canvas: HTMLCanvasElement | null = null;
     private last_frame_time: number = 0;
     private is_running: boolean = false;
     private animation_frame_id: number | null = null;
@@ -31,8 +30,6 @@ export class GameController {
      * Expects a valid HTMLCanvasElement. Returns false if WebGPU is unsupported.
      */
     async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
-        this.canvas = canvas;
-
         const gpu_initialized = await this.gpu_context.initialize(canvas);
         if (!gpu_initialized) {
             console.error("Failed to initialize WebGPU");

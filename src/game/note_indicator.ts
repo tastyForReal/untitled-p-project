@@ -30,6 +30,7 @@ export function build_note_indicators(
     const all_notes: { note: MidiNote; note_id: number }[] = [];
     for (let track_idx = 0; track_idx < midi_json.tracks.length; track_idx++) {
         const track = midi_json.tracks[track_idx];
+        if (!track) continue;
         for (const note of track.notes) {
             // Include track_idx in note_id to make it truly unique across tracks
             const note_id = Math.round(note.time * 1000) * 1000000 + track_idx * 1000 + note.midi;
@@ -52,6 +53,7 @@ export function build_note_indicators(
 
     for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
+        if (!row) continue;
         const level_row_index = row.row_index - 1; // 0-based level row index
 
         // Find which music section this row belongs to, to get TPS
@@ -99,6 +101,7 @@ export function build_note_indicators(
         }
 
         const row = rows[target_row_info.row_index];
+        if (!row) continue;
 
         // Skip START (yellow) rows and rows with no rectangles
         if (row.row_type === RowType.START || row.rectangles.length === 0) {

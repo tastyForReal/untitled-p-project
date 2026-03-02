@@ -1,4 +1,4 @@
-import { MIDI_TO_NOTE, MidiJson, MidiNote } from "./midi_types.js";
+import { MIDI_TO_NOTE, MidiJson } from "./midi_types.js";
 
 const GAME_OVER_NOTES: string[] = ["c.mp3", "e.mp3", "g.mp3"];
 const AUDIO_SAMPLES_PATH: string = "assets/sounds/mp3/piano/";
@@ -183,9 +183,12 @@ export class AudioManager {
         // Log total notes across all tracks
         let total_notes = 0;
         for (let i = 0; i < midi_data.tracks.length; i++) {
-            const note_count = midi_data.tracks[i].notes.length;
-            total_notes += note_count;
-            console.log(`  - Track ${i}: ${note_count} notes`);
+            const track = midi_data.tracks[i];
+            if (track) {
+                const note_count = track.notes.length;
+                total_notes += note_count;
+                console.log(`  - Track ${i}: ${note_count} notes`);
+            }
         }
         console.log(`  - Total notes: ${total_notes}`);
 
@@ -237,8 +240,10 @@ export class AudioManager {
         // Iterate through all tracks and play notes that should be triggered
         for (let track_idx = 0; track_idx < this.midi_data.tracks.length; track_idx++) {
             const track = this.midi_data.tracks[track_idx];
+            if (!track) continue;
             for (let i = 0; i < track.notes.length; i++) {
                 const note = track.notes[i];
+                if (!note) continue;
 
                 // Create a unique identifier for this note that includes the track index
                 const note_id = Math.round(note.time * 1000) * 1000000 + track_idx * 1000 + note.midi;
@@ -335,7 +340,9 @@ export class AudioManager {
         const random_index = Math.floor(Math.random() * this.sample_names.length);
         const sample_name = this.sample_names[random_index];
 
-        this.play_sample(sample_name);
+        if (sample_name) {
+            this.play_sample(sample_name);
+        }
     }
 
     private play_sample(sample_name: string): void {

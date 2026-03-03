@@ -111,41 +111,23 @@ export interface GameData {
     level_row_timings: RowTiming[];
 }
 
-/**
- * Timing information for a row
- */
 export interface RowTiming {
     start_time: number;
     mid_time: number;
     end_time: number;
 }
 
-/**
- * Represents a single red 16x16 square that indicates when a MIDI note
- * will be played at a specific time on a tile.
- */
 export interface NoteIndicatorData {
-    /** Unique identifier derived from the MIDI note's time and number */
     note_id: number;
-    /** The row index this indicator belongs to */
     row_index: number;
-    /** X position (pixel space, between left and right edge of the tile) */
     x: number;
-    /** Y position (pixel space, relative to the row's coordinate system) */
     y: number;
-    /** Width of the indicator square */
     width: number;
-    /** Height of the indicator square */
     height: number;
-    /** The playback time (seconds) that this indicator corresponds to */
     time: number;
-    /** Whether the indicator has been consumed (note was played) */
     is_consumed: boolean;
 }
 
-/**
- * Metadata for a music section within a level
- */
 export interface MusicMetadata {
     id: number;
     tps: number;

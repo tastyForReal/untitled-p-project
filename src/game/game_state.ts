@@ -3,7 +3,7 @@ import {
     GameState,
     RowData,
     RowType,
-    RectangleData,
+    TileData,
     SCREEN_CONFIG,
     COLORS,
     NoteIndicatorData,
@@ -170,7 +170,7 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
 
         const row_index = i + 1; // +1 because start row is index 0
         const preceding_row = rows[rows.length - 1]; // Get the last added row
-        let rectangles: RectangleData[] = [];
+        let rectangles: TileData[] = [];
 
         if (row_data.type === RowType.SINGLE) {
             let slot: number;
@@ -836,7 +836,7 @@ export class GameStateManager {
         return false;
     }
 
-    private complete_rectangle(rect: RectangleData, row: RowData, screen_y: number, early_release: boolean): void {
+    private complete_rectangle(rect: TileData, row: RowData, screen_y: number, early_release: boolean): void {
         rect.is_pressed = true;
 
         // Start the game stopwatch when the first black tile is pressed (fallback for long tiles)
@@ -857,7 +857,7 @@ export class GameStateManager {
         this.check_row_completion(row);
     }
 
-    private press_rectangle(rect: RectangleData, row: RowData, screen_y: number): void {
+    private press_rectangle(rect: TileData, row: RowData, screen_y: number): void {
         // Check for music section transition on first tile press of new section
         this.check_and_update_music_for_row(row);
         // Start the game stopwatch when the first black tile is pressed
@@ -995,7 +995,7 @@ export class GameStateManager {
         this.audio_manager.play_game_over_chord();
 
         const column_width = SCREEN_CONFIG.WIDTH / 4;
-        const indicator: RectangleData = {
+        const indicator: TileData = {
             slot_index,
             x: slot_index * column_width,
             y: active_row.y_position,
@@ -1127,7 +1127,7 @@ export class GameStateManager {
         return this.game_data.rows.filter(row => is_row_visible(row, this.game_data.scroll_offset));
     }
 
-    get_game_over_indicator(): RectangleData | null {
+    get_game_over_indicator(): TileData | null {
         if (this.game_data.game_over_flash) {
             return this.game_data.game_over_flash.rectangle;
         }

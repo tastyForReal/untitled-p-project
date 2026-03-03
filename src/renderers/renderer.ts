@@ -1,6 +1,6 @@
 import { GPUContext } from "./gpu_context.js";
 import { hex_to_rgba } from "../utils/math_utils.js";
-import { RowData, RectangleData, ParticleData, SCREEN_CONFIG } from "../game/types.js";
+import { RowData, TileData, ParticleData, SCREEN_CONFIG } from "../game/types.js";
 import { NoteIndicatorData } from "../game/note_indicator.js";
 
 interface RectangleVertex {
@@ -165,7 +165,7 @@ export class Renderer {
         return true;
     }
 
-    private create_rectangle_vertices(rect: RectangleData, scroll_offset: number): RectangleVertex[] {
+    private create_rectangle_vertices(rect: TileData, scroll_offset: number): RectangleVertex[] {
         const [r, g, b, _] = hex_to_rgba(rect.color);
 
         const effective_opacity = rect.flash_state ? rect.opacity * 0.5 : rect.opacity;
@@ -309,7 +309,7 @@ export class Renderer {
     render(
         visible_rows: RowData[],
         particles: ParticleData[],
-        game_over_indicator: RectangleData | null,
+        game_over_indicator: TileData | null,
         scroll_offset: number,
         note_indicators: NoteIndicatorData[] = [],
     ): void {

@@ -22,7 +22,7 @@ export enum RowType {
     START = 3,
 }
 
-export interface RectangleData {
+export interface TileData {
     slot_index: number;
     x: number;
     y: number;
@@ -44,7 +44,7 @@ export interface RowData {
     height_multiplier: number;
     y_position: number;
     height: number;
-    rectangles: RectangleData[];
+    rectangles: TileData[];
     is_completed: boolean;
     is_active: boolean;
 }
@@ -70,7 +70,7 @@ export enum GameState {
 }
 
 export interface GameOverFlashState {
-    rectangle: RectangleData;
+    rectangle: TileData;
     start_time: number;
     flash_count: number;
     is_flashing: boolean;

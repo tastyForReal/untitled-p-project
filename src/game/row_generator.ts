@@ -1,5 +1,5 @@
 import { random_int } from "../utils/math_utils.js";
-import { RowType, RowData, RectangleData, SCREEN_CONFIG, COLORS } from "./types.js";
+import { RowType, RowData, TileData, SCREEN_CONFIG, COLORS } from "./types.js";
 
 export const DEFAULT_ROW_COUNT = 100;
 
@@ -23,7 +23,7 @@ export function create_rectangle(
     height: number,
     color: string = COLORS.BLACK,
     opacity: number = 1.0,
-): RectangleData {
+): TileData {
     const column_width = calculate_column_width();
     return {
         slot_index,

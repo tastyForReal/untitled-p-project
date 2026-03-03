@@ -61,6 +61,9 @@ async function main(): Promise<void> {
 
     // Setup level loading button
     setup_level_loader(game_controller);
+
+    // Setup pause/play button
+    setup_pause_play_button(game_controller);
 }
 
 function setup_level_loader(game_controller: GameController): void {
@@ -135,6 +138,42 @@ function setup_level_loader(game_controller: GameController): void {
             }
         }
     });
+}
+
+function setup_pause_play_button(game_controller: GameController): void {
+    const pause_play_button = document.getElementById("pause_play_btn");
+
+    if (!pause_play_button) {
+        console.error("Pause/play button not found");
+        return;
+    }
+
+    const update_button_state = (): void => {
+        const is_paused = game_controller.is_paused();
+        const icon = pause_play_button.querySelector(".material-symbols-outlined");
+
+        if (is_paused) {
+            pause_play_button.classList.remove("playing");
+            pause_play_button.classList.add("paused");
+            if (icon) {
+                icon.textContent = "play_arrow";
+            }
+        } else {
+            pause_play_button.classList.remove("paused");
+            pause_play_button.classList.add("playing");
+            if (icon) {
+                icon.textContent = "pause";
+            }
+        }
+    };
+
+    pause_play_button.addEventListener("click", () => {
+        game_controller.toggle_pause(true);
+        update_button_state();
+    });
+
+    // Update button state periodically to sync with game state
+    setInterval(update_button_state, 100);
 }
 
 if (document.readyState === "loading") {

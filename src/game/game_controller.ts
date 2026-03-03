@@ -56,10 +56,6 @@ export class GameController {
             },
         );
 
-        this.input_handler.set_pause_callback(() => {
-            this.handle_pause();
-        });
-
         this.input_handler.set_reset_callback(() => {
             this.handle_reset();
         });
@@ -94,8 +90,18 @@ export class GameController {
         }
     }
 
-    private handle_pause(): void {
-        this.game_state.toggle_pause();
+    /**
+     * Public method to toggle pause state, can be called from UI buttons.
+     */
+    toggle_pause(allow_with_bot: boolean = false): void {
+        this.game_state.toggle_pause(allow_with_bot);
+    }
+
+    /**
+     * Returns true if the game is currently paused.
+     */
+    is_paused(): boolean {
+        return this.game_state.is_paused();
     }
 
     private handle_reset(): void {

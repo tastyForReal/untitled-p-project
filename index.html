@@ -4,6 +4,10 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Heart of the Tiles</title>
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,1,0..1&icon_names=pause,play_arrow"
+        />
         <style>
             * {
                 margin: 0;
@@ -141,6 +145,43 @@
             .load_status.success {
                 background-color: rgba(76, 175, 80, 0.9);
             }
+
+            .pause_play_button {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                width: 36px;
+                height: 36px;
+                border: none;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 20;
+                transition: background-color 0.2s ease;
+            }
+
+            .pause_play_button:hover {
+                opacity: 0.9;
+            }
+
+            .pause_play_button:active {
+                opacity: 0.8;
+            }
+
+            .pause_play_button .material-symbols-outlined {
+                font-size: 24px;
+                color: white;
+            }
+
+            .pause_play_button.paused {
+                background-color: #607afb;
+            }
+
+            .pause_play_button.playing {
+                background-color: #fb923c;
+            }
         </style>
     </head>
     <body>
@@ -149,9 +190,11 @@
                 <canvas id="game_canvas" width="405" height="720"></canvas>
                 <div class="canvas_instructions">
                     <span class="key">D</span><span class="key">F</span><span class="key">J</span
-                    ><span class="key">K</span> Columns &nbsp;|&nbsp; <span class="key">SPACE</span> Pause &nbsp;|&nbsp;
-                    <span class="key">R</span> Reset
+                    ><span class="key">K</span> Columns &nbsp;|&nbsp; <span class="key">R</span> Reset
                 </div>
+                <button class="pause_play_button paused" id="pause_play_btn">
+                    <span class="material-symbols-outlined">play_arrow</span>
+                </button>
                 <button class="load_level_button" id="load_level_btn">Load Level JSON</button>
                 <input type="file" id="level_file_input" accept="application/json" />
                 <div class="load_status" id="load_status"></div>

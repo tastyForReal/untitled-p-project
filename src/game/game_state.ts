@@ -296,8 +296,8 @@ export class GameStateManager {
         }
     }
 
-    toggle_pause(): void {
-        if (this.config.is_bot_active) return;
+    toggle_pause(allow_with_bot: boolean = false): void {
+        if (this.config.is_bot_active && !allow_with_bot) return;
 
         if (this.game_data.state === GameState.PLAYING) {
             this.game_data.state = GameState.PAUSED;

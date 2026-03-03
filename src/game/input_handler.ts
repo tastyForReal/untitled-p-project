@@ -7,13 +7,11 @@ export type SlotInputCallback = (
     is_down: boolean,
     input_type: InputType,
 ) => void;
-export type PauseCallback = () => void;
 export type ResetCallback = () => void;
 
 export class InputHandler {
     private canvas: HTMLCanvasElement | null = null;
     private on_slot_input: SlotInputCallback | null = null;
-    private on_pause: PauseCallback | null = null;
     private on_reset: ResetCallback | null = null;
 
     initialize(canvas: HTMLCanvasElement): void {
@@ -24,10 +22,6 @@ export class InputHandler {
 
     set_slot_input_callback(callback: SlotInputCallback): void {
         this.on_slot_input = callback;
-    }
-
-    set_pause_callback(callback: PauseCallback): void {
-        this.on_pause = callback;
     }
 
     set_reset_callback(callback: ResetCallback): void {
@@ -82,14 +76,6 @@ export class InputHandler {
     private setup_keyboard_handlers(): void {
         document.addEventListener("keydown", (event: KeyboardEvent) => {
             const key = event.key;
-
-            if (key === " ") {
-                event.preventDefault();
-                if (this.on_pause) {
-                    this.on_pause();
-                }
-                return;
-            }
 
             if (key === "r" || key === "R") {
                 event.preventDefault();

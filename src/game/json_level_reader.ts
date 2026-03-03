@@ -1315,11 +1315,11 @@ export interface MusicInputFile {
     baseBpm: number;
     musics: MusicEntry[];
     audition?:
-    | {
-        start: [number, number];
-        end: [number, number];
-    }
-    | undefined;
+        | {
+              start: [number, number];
+              end: [number, number];
+          }
+        | undefined;
 }
 
 export interface MusicOutput {

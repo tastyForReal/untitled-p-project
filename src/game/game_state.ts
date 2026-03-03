@@ -48,14 +48,14 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         current_music_index: 0,
         musics_metadata: [],
         // MIDI playback defaults
-        playback_stopwatch: 0,
-        is_midi_loaded: false,
+        current_midi_time: 0,
+        midi_loaded: false,
         has_game_started: false,
         note_indicators: [],
-        is_stopwatch_resumed: false,
-        stopwatch_target_time: 0,
-        current_double_press_count: 0,
-        skipped_note_ids: [],
+        midi_playing: false,
+        target_time_for_next_note: 0,
+        current_dt_press_count: 0,
+        skipped_midi_notes: [],
         level_row_timings: [],
     };
 }
@@ -290,14 +290,14 @@ export class GameStateManager {
             current_music_index: 0,
             musics_metadata: level_data.musics,
             // MIDI playback settings
-            playback_stopwatch: 0,
-            is_midi_loaded,
+            current_midi_time: 0,
+            midi_loaded: is_midi_loaded,
             has_game_started: false,
             note_indicators: [],
-            is_stopwatch_resumed: false,
-            stopwatch_target_time: 0,
-            current_double_press_count: 0,
-            skipped_note_ids: [],
+            midi_playing: false,
+            target_time_for_next_note: 0,
+            current_dt_press_count: 0,
+            skipped_midi_notes: [],
             level_row_timings,
         };
 
@@ -336,14 +336,14 @@ export class GameStateManager {
             current_music_index: 0,
             musics_metadata: [],
             // MIDI playback defaults
-            playback_stopwatch: 0,
-            is_midi_loaded: false,
+            current_midi_time: 0,
+            midi_loaded: false,
             has_game_started: false,
             note_indicators: [],
-            is_stopwatch_resumed: false,
-            stopwatch_target_time: 0,
-            current_double_press_count: 0,
-            skipped_note_ids: [],
+            midi_playing: false,
+            target_time_for_next_note: 0,
+            current_dt_press_count: 0,
+            skipped_midi_notes: [],
             level_row_timings: [],
         };
         this.particle_system.clear();
@@ -457,27 +457,27 @@ export class GameStateManager {
 
         // Only update playback stopwatch and MIDI playback after game has started (first black tile pressed)
         if (this.game_data.has_game_started) {
-            const previous_stopwatch = this.game_data.playback_stopwatch;
+            const previous_stopwatch = this.game_data.current_midi_time;
 
-            if (this.game_data.is_stopwatch_resumed) {
-                this.game_data.playback_stopwatch += delta_time;
+            if (this.game_data.midi_playing) {
+                this.game_data.current_midi_time += delta_time;
                 // Cap at target time
-                if (this.game_data.playback_stopwatch >= this.game_data.stopwatch_target_time) {
+                if (this.game_data.current_midi_time >= this.game_data.target_time_for_next_note) {
                     // Use a tiny offset (0.1ms) to avoid triggering the next row's start-time notes
                     // until the user actually interacts with that row.
-                    this.game_data.playback_stopwatch = this.game_data.stopwatch_target_time - 0.0001;
-                    this.game_data.is_stopwatch_resumed = false;
+                    this.game_data.current_midi_time = this.game_data.target_time_for_next_note - 0.0001;
+                    this.game_data.midi_playing = false;
                     console.log(
-                        `[GameState] Stopwatch reached threshold: ${this.game_data.stopwatch_target_time.toFixed(3)}s (paused at ${this.game_data.playback_stopwatch.toFixed(4)}s)`,
+                        `[GameState] Stopwatch reached threshold: ${this.game_data.target_time_for_next_note.toFixed(3)}s (paused at ${this.game_data.current_midi_time.toFixed(4)}s)`,
                     );
                 }
 
                 // Update MIDI playback and consume note indicators
                 // We call this even if we just hit the threshold to ensure notes at the target time are played
-                if (this.game_data.is_midi_loaded) {
+                if (this.game_data.midi_loaded) {
                     const played_note_ids = this.audio_manager.update_midi_playback(
-                        this.game_data.playback_stopwatch,
-                        this.game_data.skipped_note_ids,
+                        this.game_data.current_midi_time,
+                        this.game_data.skipped_midi_notes,
                     );
                     for (const note_id of played_note_ids) {
                         consume_indicator_by_note_id(this.game_data.note_indicators, note_id);
@@ -486,9 +486,9 @@ export class GameStateManager {
             }
 
             // Log stopwatch update every 0.5 seconds
-            if (Math.floor(this.game_data.playback_stopwatch * 2) !== Math.floor(previous_stopwatch * 2)) {
+            if (Math.floor(this.game_data.current_midi_time * 2) !== Math.floor(previous_stopwatch * 2)) {
                 console.log(
-                    `[GameState] Stopwatch: ${this.game_data.playback_stopwatch.toFixed(3)}s, Target: ${this.game_data.stopwatch_target_time.toFixed(3)}s, Resumed: ${this.game_data.is_stopwatch_resumed}`,
+                    `[GameState] Stopwatch: ${this.game_data.current_midi_time.toFixed(3)}s, Target: ${this.game_data.target_time_for_next_note.toFixed(3)}s, Resumed: ${this.game_data.midi_playing}`,
                 );
             }
         }
@@ -541,7 +541,7 @@ export class GameStateManager {
                         // Start the game stopwatch when the first black tile is pressed
                         if (!this.game_data.has_game_started) {
                             this.game_data.has_game_started = true;
-                            this.game_data.playback_stopwatch = 0;
+                            this.game_data.current_midi_time = 0;
                             console.log(`[GameState] Game started via bot (long tile)`);
                         }
                         // Resume stopwatch for long tile holding
@@ -625,7 +625,7 @@ export class GameStateManager {
     private play_tile_sound(): void {
         // If MIDI data is loaded, don't play random samples
         // The MIDI playback is handled in update_scroll
-        if (!this.game_data.is_midi_loaded) {
+        if (!this.game_data.midi_loaded) {
             this.audio_manager.play_random_sample();
         }
     }
@@ -703,7 +703,7 @@ export class GameStateManager {
                     // Start the game stopwatch when the first black tile is pressed
                     if (!this.game_data.has_game_started) {
                         this.game_data.has_game_started = true;
-                        this.game_data.playback_stopwatch = 0;
+                        this.game_data.current_midi_time = 0;
                         console.log(`[GameState] Game started via handle_slot_input (long tile in hit zone)`);
                     }
                     // Resume stopwatch for long tile holding
@@ -800,7 +800,7 @@ export class GameStateManager {
                 // Start the game stopwatch when the first black tile is pressed
                 if (!this.game_data.has_game_started) {
                     this.game_data.has_game_started = true;
-                    this.game_data.playback_stopwatch = 0;
+                    this.game_data.current_midi_time = 0;
                     console.log(`[GameState] Game started via handle_keyboard_input (long tile)`);
                 }
                 // Resume stopwatch for long tile holding
@@ -832,7 +832,7 @@ export class GameStateManager {
         // Start the game stopwatch when the first black tile is pressed (fallback for long tiles)
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
-            this.game_data.playback_stopwatch = 0;
+            this.game_data.current_midi_time = 0;
             console.log(`[GameState] Game started via complete_tile (fallback for long tile)`);
         }
 
@@ -853,7 +853,7 @@ export class GameStateManager {
         // Start the game stopwatch when the first black tile is pressed
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
-            this.game_data.playback_stopwatch = 0;
+            this.game_data.current_midi_time = 0;
             console.log(`[GameState] Game started via press_tile (normal tile)`);
         }
 
@@ -884,7 +884,7 @@ export class GameStateManager {
             if (next_row) {
                 const old_index = this.game_data.active_row_index;
                 this.game_data.active_row_index = next_row.row_index;
-                this.game_data.current_double_press_count = 0;
+                this.game_data.current_dt_press_count = 0;
 
                 // Handle empty rows between the completed row and the next incomplete row
                 for (let i = old_index + 1; i < next_row.row_index; i++) {
@@ -909,40 +909,40 @@ export class GameStateManager {
         // flows rhythmically rather than jumping forward and causing bursts of notes.
         const is_manual_interaction = row.row_type !== RowType.EMPTY;
         const is_first_interaction_of_row =
-            row.row_type !== RowType.DOUBLE || this.game_data.current_double_press_count === 0;
+            row.row_type !== RowType.DOUBLE || this.game_data.current_dt_press_count === 0;
 
         if (
             is_manual_interaction &&
             is_first_interaction_of_row &&
-            this.game_data.playback_stopwatch < timing.start_time
+            this.game_data.current_midi_time < timing.start_time
         ) {
             console.log(
-                `[GameState] Jumping stopwatch to next timing point: ${this.game_data.playback_stopwatch.toFixed(3)}s -> ${timing.start_time.toFixed(3)}s`,
+                `[GameState] Jumping stopwatch to next timing point: ${this.game_data.current_midi_time.toFixed(3)}s -> ${timing.start_time.toFixed(3)}s`,
             );
-            this.game_data.playback_stopwatch = timing.start_time;
+            this.game_data.current_midi_time = timing.start_time;
         }
 
         if (row.row_type === RowType.DOUBLE) {
-            this.game_data.current_double_press_count++;
+            this.game_data.current_dt_press_count++;
             // Tiered timing for double tiles:
             // 1st press resumes stopwatch until the row's midpoint.
             // 2nd press (hitting immediately) extends the target to the row's end without jumping time.
-            if (this.game_data.current_double_press_count === 1) {
-                this.game_data.stopwatch_target_time = timing.mid_time;
+            if (this.game_data.current_dt_press_count === 1) {
+                this.game_data.target_time_for_next_note = timing.mid_time;
             } else {
-                this.game_data.stopwatch_target_time = timing.end_time;
+                this.game_data.target_time_for_next_note = timing.end_time;
             }
         } else {
-            this.game_data.stopwatch_target_time = timing.end_time;
+            this.game_data.target_time_for_next_note = timing.end_time;
         }
 
-        this.game_data.is_stopwatch_resumed = true;
+        this.game_data.midi_playing = true;
 
         // Trigger an immediate MIDI update to ensure notes at the start/jump point play without delay
-        if (this.game_data.is_midi_loaded) {
+        if (this.game_data.midi_loaded) {
             const played_note_ids = this.audio_manager.update_midi_playback(
-                this.game_data.playback_stopwatch,
-                this.game_data.skipped_note_ids,
+                this.game_data.current_midi_time,
+                this.game_data.skipped_midi_notes,
             );
             for (const note_id of played_note_ids) {
                 consume_indicator_by_note_id(this.game_data.note_indicators, note_id);
@@ -958,7 +958,7 @@ export class GameStateManager {
             ind => ind.row_index === active_row.row_index && !ind.is_consumed,
         );
         for (const ind of indicators) {
-            this.game_data.skipped_note_ids.push(ind.note_id);
+            this.game_data.skipped_midi_notes.push(ind.note_id);
             ind.is_consumed = true; // Mark as consumed to remove from screen
         }
     }

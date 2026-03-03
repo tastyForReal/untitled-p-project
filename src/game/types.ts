@@ -9,7 +9,6 @@ export const SCREEN_CONFIG = {
 } as const;
 
 export const COLORS = {
-    BACKGROUND: "#FFFFFF",
     BLACK: "#000000",
     YELLOW: "#FFFF00",
     RED: "#FF0000",

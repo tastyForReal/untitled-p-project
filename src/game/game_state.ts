@@ -328,6 +328,15 @@ export class GameStateManager {
     }
 
     /**
+     * Returns true if the yellow start tile has been pressed.
+     * This is different from has_game_started which is only true after pressing a black tile.
+     */
+    is_start_tile_pressed(): boolean {
+        const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
+        return start_row?.is_completed ?? false;
+    }
+
+    /**
      * Calculates the current scroll speed based on TPS.
      * TPS = tiles per second, where each tile is BASE_ROW_HEIGHT pixels.
      * Scroll speed = TPS * BASE_ROW_HEIGHT (pixels per second)

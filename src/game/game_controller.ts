@@ -111,6 +111,13 @@ export class GameController {
         return this.game_state.has_game_started();
     }
 
+    /**
+     * Returns true if the yellow start tile has been pressed.
+     */
+    is_start_tile_pressed(): boolean {
+        return this.game_state.is_start_tile_pressed();
+    }
+
     private handle_reset(): void {
         this.game_state.reset();
     }

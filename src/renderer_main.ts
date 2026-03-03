@@ -57,6 +57,9 @@ async function main(): Promise<void> {
         game_controller.resize(SCREEN_CONFIG.WIDTH, SCREEN_CONFIG.HEIGHT);
     });
 
+    // Pause game when window loses focus
+    setup_focus_pause(game_controller);
+
     game_controller.start();
 
     // Setup level loading button
@@ -153,12 +156,13 @@ function setup_pause_play_button(game_controller: GameController): void {
 
     const update_button_state = (): void => {
         const has_started = game_controller.has_game_started();
+        const is_start_pressed = game_controller.is_start_tile_pressed();
         const is_paused = game_controller.is_paused();
         const icon = pause_play_button.querySelector(".material-symbols-outlined");
 
-        // Show button when game is playing (after yellow tile) OR when game has started (after black tile)
-        // This ensures button appears right after pressing yellow rectangle
-        const should_show_button = !is_paused || has_started;
+        // Show button when yellow tile has been pressed OR when game has started
+        // This ensures button stays visible even when auto-paused after yellow tile press
+        const should_show_button = is_start_pressed || has_started;
 
         if (should_show_button) {
             pause_play_button.style.display = "flex";
@@ -188,6 +192,22 @@ function setup_pause_play_button(game_controller: GameController): void {
 
     // Update button state periodically to sync with game state
     setInterval(update_button_state, 100);
+}
+
+function setup_focus_pause(game_controller: GameController): void {
+    // Pause game when window loses focus (blur event)
+    window.addEventListener("blur", () => {
+        if (!game_controller.is_paused()) {
+            game_controller.toggle_pause(true);
+        }
+    });
+
+    // Pause game when page visibility changes (e.g., tab switch, minimize)
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden" && !game_controller.is_paused()) {
+            game_controller.toggle_pause(true);
+        }
+    });
 }
 
 if (document.readyState === "loading") {

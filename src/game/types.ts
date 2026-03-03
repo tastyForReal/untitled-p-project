@@ -3,9 +3,9 @@ export const SCREEN_CONFIG = {
     HEIGHT: 720,
     COLUMN_COUNT: 4,
     BASE_ROW_HEIGHT: 180,
-    SCROLL_SPEED: 540, // Default scroll speed (pixels per second)
+    SCROLL_SPEED: 540,
     GRID_LINE_WIDTH: 1,
-    DEFAULT_TPS: 3, // Default tiles per second when no level is loaded
+    DEFAULT_TPS: 3,
 } as const;
 
 export const COLORS = {
@@ -97,20 +97,18 @@ export interface GameData {
     last_double_slots: [number, number] | null;
     active_row_index: number;
     completed_rows_count: number;
-    // TPS (Tiles Per Second) related fields
     current_tps: number;
     current_music_index: number;
     musics_metadata: MusicMetadata[];
-    // MIDI playback related fields
-    current_midi_time: number; // Current playback position in seconds
-    midi_loaded: boolean; // Whether MIDI data is loaded from JSON
-    has_game_started: boolean; // Whether the first black tile has been pressed (after yellow start tile)
-    note_indicators: NoteIndicatorData[]; // Red 16x16 MIDI note indicator squares
-    midi_playing: boolean; // Whether the stopwatch is currently running for MIDI playback
-    target_time_for_next_note: number; // The next time threshold to stop the stopwatch
-    current_dt_press_count: number; // Number of presses in the current double-tile row
-    skipped_midi_notes: number[]; // IDs of notes to skip (e.g., from early release of long tiles)
-    level_row_timings: RowTiming[]; // Timings for each level row
+    current_midi_time: number;
+    midi_loaded: boolean;
+    has_game_started: boolean;
+    note_indicators: NoteIndicatorData[];
+    midi_playing: boolean;
+    target_time_for_next_note: number;
+    current_dt_press_count: number;
+    skipped_midi_notes: number[];
+    level_row_timings: RowTiming[];
 }
 
 /**
@@ -150,10 +148,10 @@ export interface NoteIndicatorData {
  */
 export interface MusicMetadata {
     id: number;
-    tps: number; // Tiles per second
-    start_row_index: number; // Index of first row in combined array (excluding start row)
-    end_row_index: number; // Index after last row (exclusive)
-    row_count: number; // Number of rows in this music
+    tps: number;
+    start_row_index: number;
+    end_row_index: number;
+    row_count: number;
 }
 
 export enum InputType {

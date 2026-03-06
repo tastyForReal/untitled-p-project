@@ -489,8 +489,22 @@ export class GameStateManager {
                         this.game_data.current_midi_time,
                         this.game_data.skipped_midi_notes,
                     );
+                    const current_time = performance.now();
                     for (const note_id of played_note_ids) {
-                        consume_indicator_by_note_id(this.game_data.note_indicators, note_id);
+                        const indicator = this.game_data.note_indicators.find(ind => ind.note_id === note_id);
+                        if (indicator) {
+                            indicator.is_consumed = true;
+                            // Update last_note_played_at for all tiles in this row that are being held
+                            const target_row = this.game_data.rows[indicator.row_index];
+                            if (target_row) {
+                                for (const tile of target_row.tiles) {
+                                    if (tile.is_holding) {
+                                        tile.last_note_played_at = current_time;
+                                        tile.active_circle_animations.push(current_time);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -544,6 +558,8 @@ export class GameStateManager {
                 for (const rect of active_row.tiles) {
                     if (!rect.is_pressed && !rect.is_holding) {
                         rect.is_holding = true;
+                        rect.last_note_played_at = performance.now();
+                        rect.active_circle_animations.push(rect.last_note_played_at);
                         // Start progress bar from base tile height for long tiles
                         rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
                         // Check for music section transition on first tile press of new section
@@ -706,6 +722,8 @@ export class GameStateManager {
 
                 if (screen_y >= hit_zone_top && screen_y <= row_bottom) {
                     pressed_rect.is_holding = true;
+                    pressed_rect.last_note_played_at = performance.now();
+                    pressed_rect.active_circle_animations.push(pressed_rect.last_note_played_at);
                     // Start progress bar from base tile height for long tiles
                     pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
                     // Check for music section transition on first tile press of new section
@@ -803,6 +821,8 @@ export class GameStateManager {
 
             if (is_long_tile) {
                 pressed_rect.is_holding = true;
+                pressed_rect.last_note_played_at = performance.now();
+                pressed_rect.active_circle_animations.push(pressed_rect.last_note_played_at);
                 // Start progress bar from base tile height for long tiles
                 pressed_rect.progress = SCREEN_CONFIG.BASE_ROW_HEIGHT;
                 // Check for music section transition on first tile press of new section
@@ -838,6 +858,7 @@ export class GameStateManager {
 
     private complete_tile(rect: TileData, row: RowData, screen_y: number, early_release: boolean): void {
         rect.is_pressed = true;
+        rect.completed_at = performance.now();
 
         // Start the game stopwatch when the first black tile is pressed (fallback for long tiles)
         if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
@@ -847,7 +868,8 @@ export class GameStateManager {
         }
 
         if (!early_release) {
-            rect.opacity = 0.25;
+            // All tiles now stay at 1.0 opacity after completion to support sprite animations
+            rect.opacity = 1.0;
             this.particle_system.add_debris(rect.x, screen_y, rect.width, rect.height, 20);
         } else {
             // Long tile released too early: don't pause stopwatch but skip MIDI notes for this tile
@@ -1015,6 +1037,9 @@ export class GameStateManager {
             is_holding: false,
             progress: 0,
             is_released_early: false,
+            completed_at: null,
+            last_note_played_at: null,
+            active_circle_animations: [],
         };
 
         this.game_data.game_over_data = {

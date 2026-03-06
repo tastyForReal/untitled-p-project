@@ -39,6 +39,9 @@ export function create_tile(
         is_holding: false,
         progress: 0,
         is_released_early: false,
+        completed_at: null,
+        last_note_played_at: null,
+        active_circle_animations: [],
     };
 }
 

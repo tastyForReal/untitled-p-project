@@ -36,6 +36,9 @@ export interface TileData {
     is_holding: boolean;
     progress: number;
     is_released_early: boolean;
+    completed_at: number | null;
+    last_note_played_at: number | null;
+    active_circle_animations: number[];
 }
 
 export interface RowData {

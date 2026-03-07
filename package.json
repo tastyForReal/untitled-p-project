@@ -1,28 +1,31 @@
 {
-    "name": "heart_of_the_tiles",
-    "version": "1.0.0",
+    "$schema": "https://json.schemastore.org/package.json",
+    "name": "heart-of-the-tiles",
+    "author": "tastyForReal",
     "description": "Heart of the Tiles - A love letter to the mobile game \"Piano Tiles 2\"",
-    "main": "dist/main.js",
-    "scripts": {
-        "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json",
-        "start": "electron .",
-        "start:bot": "electron . --bot",
-        "dev": "bun run build && electron .",
-        "dev:bot": "bun run build && electron . --bot"
-    },
+    "license": "MIT",
     "keywords": [
         "electron",
         "webgpu",
         "game",
         "typescript"
     ],
-    "author": "",
-    "license": "MIT",
+    "main": "dist/main.js",
+    "version": "0.0.1",
+    "private": "true",
     "devDependencies": {
         "@types/node": "^25.3.3",
         "@webgpu/types": "^0.1.69",
         "electron": "^40.6.1",
         "prettier": "^3.8.1",
         "typescript": "^5.9.3"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json",
+        "dev": "bun run build && electron .",
+        "dev:bot": "bun run build && electron . --bot",
+        "format": "prettier --write src/**/*.ts",
+        "start": "electron .",
+        "start:bot": "electron . --bot"
     }
 }

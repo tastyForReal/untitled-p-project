@@ -337,9 +337,9 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                     }
                 }
             } else {
-                const noteVal = notes[idx];
-                if (noteVal === undefined) continue;
-                if (noteVal === 3) {
+                const note_val = notes[idx];
+                if (note_val === undefined) continue;
+                if (note_val === 3) {
                     let delay: number;
                     if (arp1 === 1) {
                         delay = sdiv.divide(length, 10);
@@ -352,7 +352,7 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                     length = length - delay;
                     messages.push({ type: 2, value: delay });
                 } else {
-                    messages.push({ type: 0, value: noteVal });
+                    messages.push({ type: 0, value: note_val });
                 }
             }
         }
@@ -366,9 +366,9 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                     }
                 }
             } else {
-                const noteVal = notes[idx];
-                if (noteVal === undefined) continue;
-                if (noteVal === 4) {
+                const note_val = notes[idx];
+                if (note_val === undefined) continue;
+                if (note_val === 4) {
                     const delay = sdiv.divide(3 * length, 10 * arp2);
                     if (delay > length) {
                         throw new Error('Fatal error with %');
@@ -376,7 +376,7 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                     length = length - delay;
                     messages.push({ type: 2, value: delay });
                 } else {
-                    messages.push({ type: 0, value: noteVal });
+                    messages.push({ type: 0, value: note_val });
                 }
             }
         }
@@ -390,9 +390,9 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                     }
                 }
             } else {
-                const noteVal = notes[idx];
-                if (noteVal === undefined) continue;
-                if (noteVal === 5) {
+                const note_val = notes[idx];
+                if (note_val === undefined) continue;
+                if (note_val === 5) {
                     const delay = sdiv.divide(3 * length, 20 * arp3);
                     if (delay > length) {
                         throw new Error('Fatal error with !');
@@ -400,7 +400,7 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                     length = length - delay;
                     messages.push({ type: 2, value: delay });
                 } else {
-                    messages.push({ type: 0, value: noteVal });
+                    messages.push({ type: 0, value: note_val });
                 }
             }
         }
@@ -423,25 +423,25 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
         const bpm32 = bpm * 32;
 
         while (true) {
-            const currentNote = notes[note_flip];
-            if (currentNote !== undefined) {
-                messages.push({ type: 0, value: currentNote });
+            const current_note = notes[note_flip];
+            if (current_note !== undefined) {
+                messages.push({ type: 0, value: current_note });
             }
 
             let delay = sdiv.divide(bpm32, 720);
             if (delay >= length) {
                 messages.push({ type: 2, value: length });
-                const endNote = notes[note_flip];
-                if (endNote !== undefined) {
-                    messages.push({ type: 1, value: endNote });
+                const end_note = notes[note_flip];
+                if (end_note !== undefined) {
+                    messages.push({ type: 1, value: end_note });
                 }
                 break;
             } else {
                 length = length - delay;
                 messages.push({ type: 2, value: delay });
-                const midNote = notes[note_flip];
-                if (midNote !== undefined) {
-                    messages.push({ type: 1, value: midNote });
+                const mid_note = notes[note_flip];
+                if (mid_note !== undefined) {
+                    messages.push({ type: 1, value: mid_note });
                 }
             }
 
@@ -455,8 +455,8 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
         const temp_notes: number[] = [];
 
         for (let idx = 0; idx <= notes.length; idx++) {
-            const noteVal = notes[idx];
-            if (idx === notes.length || noteVal === 2) {
+            const note_val = notes[idx];
+            if (idx === notes.length || note_val === 2) {
                 for (const tn of temp_notes) {
                     messages.push({ type: 0, value: tn });
                 }
@@ -465,8 +465,8 @@ function process_notes(notes: number[], length: number, messages: ParsedMessage[
                     messages.push({ type: 1, value: tn });
                 }
                 temp_notes.length = 0;
-            } else if (noteVal !== undefined) {
-                temp_notes.push(noteVal);
+            } else if (note_val !== undefined) {
+                temp_notes.push(note_val);
             }
         }
     }

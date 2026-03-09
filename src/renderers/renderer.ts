@@ -1,15 +1,19 @@
 import { GPUContext } from './gpu_context.js';
 import { BMFontRenderer } from './bm_font_renderer.js';
-import { hex_to_rgba } from '../utils/math_utils.js';
 import { RowData, TileData, ParticleData, SCREEN_CONFIG, RowType } from '../game/types.js';
 import { NoteIndicatorData } from '../game/note_indicator.js';
 import { ScoreData } from '../game/score_types.js';
 import { ScoreRenderer } from '../game/score_renderer.js';
 import { SpriteRenderer } from './sprite_renderer.js';
+import { Color } from '../graphics/color.js';
 
 interface RectangleVertex {
     position: [number, number];
     color: [number, number, number, number];
+}
+
+function color_to_rgba(color: Color, opacity: number = 1.0): [number, number, number, number] {
+    return [color.r / 255, color.g / 255, color.b / 255, opacity];
 }
 
 export class Renderer {
@@ -189,11 +193,8 @@ export class Renderer {
     }
 
     private create_tile_vertices(rect: TileData, scroll_offset: number): RectangleVertex[] {
-        const [r, g, b, _] = hex_to_rgba(rect.color);
-
         const effective_opacity = rect.flash_state ? rect.opacity * 0.5 : rect.opacity;
-
-        const color: [number, number, number, number] = [r, g, b, effective_opacity];
+        const color = color_to_rgba(rect.color, effective_opacity);
 
         const y = rect.y + scroll_offset;
 
@@ -231,8 +232,7 @@ export class Renderer {
     }
 
     private create_particle_vertices(particle: ParticleData): RectangleVertex[] {
-        const [r, g, b, _] = hex_to_rgba(particle.color);
-        const color: [number, number, number, number] = [r, g, b, particle.opacity];
+        const color = color_to_rgba(particle.color, particle.opacity);
 
         const half_size = particle.size / 2;
 

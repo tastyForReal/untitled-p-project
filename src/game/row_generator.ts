@@ -1,5 +1,6 @@
 import { random_int } from '../utils/math_utils.js';
 import { RowType, RowData, TileData, SCREEN_CONFIG, COLORS } from './types.js';
+import { Color } from '../graphics/color.js';
 
 export const DEFAULT_ROW_COUNT = 100;
 
@@ -21,7 +22,7 @@ export function create_tile(
     lane_index: number,
     y_position: number,
     height: number,
-    color: string = COLORS.BLACK,
+    color: Color = COLORS.BLACK,
     opacity: number = 1.0,
 ): TileData {
     const column_width = calculate_column_width();

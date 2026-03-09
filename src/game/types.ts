@@ -1,4 +1,5 @@
 import { MidiJson } from './midi_types.js';
+import { Color } from '../graphics/color.js';
 
 export const SCREEN_CONFIG = {
     WIDTH: 405,
@@ -11,10 +12,10 @@ export const SCREEN_CONFIG = {
 } as const;
 
 export const COLORS = {
-    BLACK: '#000000',
-    YELLOW: '#FFFF00',
-    RED: '#FF0000',
-    WHITE: '#FFFFFF',
+    BLACK: Color.black,
+    YELLOW: Color.yellow,
+    RED: Color.red,
+    WHITE: Color.white,
 } as const;
 
 export enum RowType {
@@ -35,7 +36,7 @@ export interface TileData {
     y: number;
     width: number;
     height: number;
-    color: string;
+    color: Color;
     opacity: number;
     is_pressed: boolean;
     is_game_over_indicator: boolean;
@@ -67,7 +68,7 @@ export interface ParticleData {
     size: number;
     opacity: number;
     decay_rate: number;
-    color: string;
+    color: Color;
 }
 
 export enum GameState {

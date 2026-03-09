@@ -2,6 +2,7 @@ import { GameController } from './game/game_controller.js';
 import { SCREEN_CONFIG } from './game/types.js';
 import { select_and_load_music_file, LevelData } from './game/json_level_reader.js';
 import { get_audio_manager } from './game/audio_manager.js';
+import { show_customize_dialog } from './game/customize_dialog.js';
 
 async function main(): Promise<void> {
     setTimeout(() => {
@@ -69,6 +70,15 @@ async function main(): Promise<void> {
     setup_pause_play_button(game_controller);
 }
 
+/**
+ * Strips the file extension from a filename.
+ */
+function get_filename_without_extension(filename: string): string {
+    const last_dot = filename.lastIndexOf('.');
+    if (last_dot <= 0) return filename;
+    return filename.substring(0, last_dot);
+}
+
 function setup_level_loader(game_controller: GameController): void {
     const load_button = document.getElementById('load_level_btn');
     const load_status = document.getElementById('load_status');
@@ -86,48 +96,83 @@ function setup_level_loader(game_controller: GameController): void {
         }
 
         try {
-            const level_data: LevelData = await select_and_load_music_file();
+            const { level_data, filename } = await select_and_load_music_file();
 
-            if (level_data.rows.length > 0) {
-                // Load the complete level with metadata
-                game_controller.load_level(level_data);
-
-                if (load_status) {
-                    const music_count = level_data.musics.length;
-                    const first_music = level_data.musics[0];
-                    const initial_tps = first_music ? first_music.tps.toFixed(2) : 'default';
-
-                    load_status.textContent = `Level loaded! (${level_data.rows.length} rows, ${music_count} music(s), TPS: ${initial_tps})`;
-                    load_status.className = 'load_status success';
-                    load_status.style.display = 'block';
-
-                    // Hide status after 3 seconds
-                    setTimeout(() => {
-                        load_status.style.display = 'none';
-                    }, 3000);
-                }
-
-                console.log(
-                    `Loaded level with ${level_data.rows.length} rows from ${level_data.musics.length} music(s)`,
-                );
-                console.log(`Base BPM: ${level_data.base_bpm}`);
-                level_data.musics.forEach(m => {
-                    console.log(
-                        `  Music ${m.id}: TPS=${m.tps.toFixed(2)}, rows=${m.row_count}, range=[${m.start_row_index}, ${m.end_row_index})`,
-                    );
-                });
-            } else {
+            if (level_data.rows.length === 0) {
                 if (load_status) {
                     load_status.textContent = 'No valid level data found in file';
                     load_status.className = 'load_status error';
                     load_status.style.display = 'block';
-
                     setTimeout(() => {
                         load_status.style.display = 'none';
                     }, 3000);
                 }
+                return;
             }
+
+            // Hide loading status while dialog is open
+            if (load_status) {
+                load_status.style.display = 'none';
+            }
+
+            // Show the customize dialog
+            const dialog_result = await show_customize_dialog(level_data);
+
+            // Apply custom TPS values to the music metadata
+            const modified_level_data: LevelData = {
+                ...level_data,
+                musics: level_data.musics.map((music, i) => ({
+                    ...music,
+                    tps: dialog_result.custom_tps_values[i] ?? music.tps,
+                })),
+            };
+
+            // Extract display name from filename
+            const display_name = get_filename_without_extension(filename);
+
+            // Load the level with mode configuration
+            game_controller.load_level(
+                modified_level_data,
+                dialog_result.game_mode,
+                dialog_result.endless_config,
+                display_name,
+            );
+
+            // Update window title
+            document.title = `${display_name} - Heart of the Tiles`;
+
+            if (load_status) {
+                const music_count = modified_level_data.musics.length;
+                const first_music = modified_level_data.musics[0];
+                const initial_tps = first_music ? first_music.tps.toFixed(2) : 'default';
+
+                load_status.textContent = `Level loaded! (${modified_level_data.rows.length} rows, ${music_count} music(s), TPS: ${initial_tps})`;
+                load_status.className = 'load_status success';
+                load_status.style.display = 'block';
+
+                setTimeout(() => {
+                    load_status.style.display = 'none';
+                }, 3000);
+            }
+
+            console.log(
+                `Loaded level with ${modified_level_data.rows.length} rows from ${modified_level_data.musics.length} music(s)`,
+            );
+            console.log(`Base BPM: ${modified_level_data.base_bpm}`);
+            modified_level_data.musics.forEach(m => {
+                console.log(
+                    `  Music ${m.id}: TPS=${m.tps.toFixed(2)}, rows=${m.row_count}, range=[${m.start_row_index}, ${m.end_row_index})`,
+                );
+            });
         } catch (error) {
+            // Ignore cancellation from dialog
+            if (error instanceof Error && error.message === 'Dialog cancelled') {
+                if (load_status) {
+                    load_status.style.display = 'none';
+                }
+                return;
+            }
+
             console.error('Failed to load level:', error);
 
             if (load_status) {
@@ -160,8 +205,6 @@ function setup_pause_play_button(game_controller: GameController): void {
         const is_paused = game_controller.is_paused();
         const icon = pause_play_button.querySelector('.material-symbols-outlined');
 
-        // Show button when yellow tile has been pressed OR when game has started
-        // This ensures button stays visible even when auto-paused after yellow tile press
         const should_show_button = is_start_pressed || has_started;
 
         if (should_show_button) {
@@ -195,14 +238,12 @@ function setup_pause_play_button(game_controller: GameController): void {
 }
 
 function setup_focus_pause(game_controller: GameController): void {
-    // Pause game when window loses focus (blur event)
     window.addEventListener('blur', () => {
         if (!game_controller.is_paused()) {
             game_controller.toggle_pause(true);
         }
     });
 
-    // Pause game when page visibility changes (e.g., tab switch, minimize)
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden' && !game_controller.is_paused()) {
             game_controller.toggle_pause(true);

@@ -9,13 +9,15 @@ import {
     NoteIndicatorData,
     MusicMetadata,
     RowTiming,
+    GameMode,
+    EndlessConfig,
 } from './types.js';
 import { generate_all_rows, is_row_visible, DEFAULT_ROW_COUNT, create_tile } from './row_generator.js';
 import { ParticleSystem } from './particle_system.js';
 import { point_in_rect } from '../utils/math_utils.js';
 import { RowTypeResult, LevelData } from './json_level_reader.js';
 import { get_audio_manager, AudioManager } from './audio_manager.js';
-import { build_note_indicators, consume_indicator_by_note_id, get_active_indicators } from './note_indicator.js';
+import { build_note_indicators, get_active_indicators } from './note_indicator.js';
 import { ScoreManager } from './score_manager.js';
 import { ScoreData } from './score_types.js';
 
@@ -59,6 +61,12 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         current_dt_press_count: 0,
         skipped_midi_notes: [],
         level_row_timings: [],
+        game_mode: GameMode.ONE_ROUND,
+        endless_config: null,
+        loop_count: 0,
+        current_filename: 'Heart of the Tiles',
+        raw_level_rows: [],
+        loop_0_midi_notes: [],
     };
 }
 
@@ -241,16 +249,20 @@ export class GameStateManager {
         this.game_data = create_initial_game_state(this.config);
         this.particle_system.clear();
         this.audio_manager.stop_all_samples();
-        // Clear MIDI data and reset playback
         this.audio_manager.clear_midi_data();
-        // Reset score
         this.score_manager.reset();
+        document.title = 'Heart of the Tiles';
     }
 
     /**
      * Loads a complete level with rows and music metadata for dynamic TPS
      */
-    load_level(level_data: LevelData): void {
+    load_level(
+        level_data: LevelData,
+        game_mode: GameMode = GameMode.ONE_ROUND,
+        endless_config: EndlessConfig | null = null,
+        filename: string = '',
+    ): void {
         const rows = generate_rows_from_level_data(level_data.rows);
 
         // Determine initial TPS from first music
@@ -272,7 +284,6 @@ export class GameStateManager {
             console.log(`  - MIDI tracks: ${level_data.midi_json.tracks.length}`);
             this.audio_manager.load_midi_data(level_data.midi_json);
         } else {
-            console.log(`  - No MIDI data, clearing audio manager`);
             this.audio_manager.clear_midi_data();
         }
 
@@ -292,7 +303,10 @@ export class GameStateManager {
             active_row_index: 0,
             completed_rows_count: 0,
             // TPS settings from level data
-            current_tps: initial_tps,
+            current_tps:
+                game_mode === GameMode.ENDLESS_CHALLENGE && endless_config?.starting_tps !== undefined
+                    ? endless_config.starting_tps
+                    : initial_tps,
             current_music_index: 0,
             musics_metadata: level_data.musics,
             // MIDI playback settings
@@ -305,10 +319,53 @@ export class GameStateManager {
             current_dt_press_count: 0,
             skipped_midi_notes: [],
             level_row_timings,
+            game_mode,
+            endless_config,
+            loop_count: 0,
+            current_filename: filename,
+            raw_level_rows: level_data.rows,
+            loop_0_midi_notes: [],
         };
 
         // Build note indicators from MIDI data after rows are set
         if (level_data.midi_json) {
+            const all_loop_notes: {
+                track_idx: number;
+                midi: number;
+                original_time: number;
+                row_index: number;
+                time_fraction: number;
+            }[] = [];
+            for (let track_idx = 0; track_idx < level_data.midi_json.tracks.length; track_idx++) {
+                const track = level_data.midi_json.tracks[track_idx];
+                if (!track) continue;
+                for (const note of track.notes) {
+                    let target_row_index = -1;
+                    let target_fraction = 0;
+                    for (let r = 0; r < level_row_timings.length; r++) {
+                        const timing = level_row_timings[r];
+                        if (timing && note.time >= timing.start_time && note.time <= timing.end_time) {
+                            if (timing.end_time > timing.start_time) {
+                                target_row_index = r + 1; // 1-based level row index
+                                target_fraction =
+                                    (note.time - timing.start_time) / (timing.end_time - timing.start_time);
+                                break;
+                            }
+                        }
+                    }
+                    if (target_row_index !== -1) {
+                        all_loop_notes.push({
+                            track_idx,
+                            midi: note.midi,
+                            original_time: note.time,
+                            row_index: target_row_index,
+                            time_fraction: target_fraction,
+                        });
+                    }
+                }
+            }
+            this.game_data.loop_0_midi_notes = all_loop_notes;
+
             this.game_data.note_indicators = build_note_indicators(
                 level_data.midi_json,
                 this.game_data.rows,
@@ -339,11 +396,9 @@ export class GameStateManager {
             last_double_lanes: null,
             active_row_index: 0,
             completed_rows_count: 0,
-            // Default TPS when no metadata
             current_tps: SCREEN_CONFIG.DEFAULT_TPS,
             current_music_index: 0,
             musics_metadata: [],
-            // MIDI playback defaults
             current_midi_time: 0,
             midi_loaded: false,
             has_game_started: false,
@@ -353,11 +408,15 @@ export class GameStateManager {
             current_dt_press_count: 0,
             skipped_midi_notes: [],
             level_row_timings: [],
+            game_mode: GameMode.ONE_ROUND,
+            endless_config: null,
+            loop_count: 0,
+            current_filename: '',
+            raw_level_rows: level_rows,
+            loop_0_midi_notes: [], // Populated after load if MIDI present
         };
         this.particle_system.clear();
-        // Clear MIDI data when loading custom rows
         this.audio_manager.clear_midi_data();
-        // Reset score when loading custom rows
         this.score_manager.reset();
     }
 
@@ -416,6 +475,15 @@ export class GameStateManager {
         return this.game_data.current_tps * SCREEN_CONFIG.BASE_ROW_HEIGHT;
     }
 
+    private update_challenge_tps(delta_time: number): void {
+        if (
+            this.game_data.game_mode === GameMode.ENDLESS_CHALLENGE &&
+            this.game_data.endless_config?.acceleration_rate
+        ) {
+            this.game_data.current_tps += this.game_data.endless_config.acceleration_rate * delta_time;
+        }
+    }
+
     /**
      * Checks and updates the current TPS based on which music section the given row belongs to.
      * This is called when pressing a tile to update speed immediately on first tile press of a new section.
@@ -426,27 +494,26 @@ export class GameStateManager {
         if (musics.length === 0) return false;
         if (row.row_type === RowType.START) return false;
 
-        // Row index 0 is the start row, so actual level rows start at index 1
-        // Convert to level row index (0-based for level rows)
         const level_row_index = row.row_index - 1;
 
-        // Find which music section this row belongs to
         for (let i = 0; i < musics.length; i++) {
             const music = musics[i];
             if (!music) continue;
-            // start_row_index and end_row_index are already 0-based for level rows
             if (level_row_index >= music.start_row_index && level_row_index < music.end_row_index) {
                 if (this.game_data.current_music_index !== i) {
-                    // Transitioned to a new music section
-                    const previous_music_index = this.game_data.current_music_index;
                     const previous_tps = this.game_data.current_tps;
                     this.game_data.current_music_index = i;
-                    this.game_data.current_tps = music.tps;
-                    console.log(`[GameState] Music transition on tile press:`);
-                    console.log(`  - From: Music ${previous_music_index}, TPS: ${previous_tps.toFixed(2)}`);
-                    console.log(`  - To: Music ${music.id} (index ${i}), TPS: ${music.tps.toFixed(2)}`);
+
+                    if (this.game_data.game_mode !== GameMode.ENDLESS_CHALLENGE) {
+                        this.game_data.current_tps = music.tps;
+                        console.log(
+                            `[GameState] Transitioned to section ${i}, TPS updating to ${music.tps.toFixed(3)}`,
+                        );
+                    }
+                    // For challenge mode, TPS is managed by update_challenge_tps, so don't override here
+
                     console.log(
-                        `  - Level row index: ${level_row_index}, range: [${music.start_row_index}, ${music.end_row_index})`,
+                        `[GameState] Music transition: TPS ${previous_tps.toFixed(2)} -> ${this.game_data.current_tps.toFixed(2)}, music index ${i}`,
                     );
                     return true;
                 }
@@ -461,6 +528,8 @@ export class GameStateManager {
             return;
         }
 
+        this.update_challenge_tps(delta_time);
+
         const scroll_speed = this.get_scroll_speed();
         const scroll_delta = scroll_speed * delta_time;
         this.game_data.scroll_offset += scroll_delta;
@@ -470,52 +539,27 @@ export class GameStateManager {
             const previous_stopwatch = this.game_data.current_midi_time;
 
             if (this.game_data.midi_playing) {
-                this.game_data.current_midi_time += delta_time;
+                // Scale stopwatch advancement by the ratio of current_tps to the section's native TPS
+                // This ensures audio stays in sync with accelerated visual scrolling in Challenge Mode.
+                const current_music = this.game_data.musics_metadata[this.game_data.current_music_index];
+                const native_tps = current_music?.tps ?? SCREEN_CONFIG.DEFAULT_TPS;
+                const speed_multiplier = this.game_data.current_tps / native_tps;
+
+                this.game_data.current_midi_time += delta_time * speed_multiplier;
+
                 // Cap at target time
                 if (this.game_data.current_midi_time >= this.game_data.target_time_for_next_note) {
-                    // Use a tiny offset (0.1ms) to avoid triggering the next row's start-time notes
-                    // until the user actually interacts with that row.
                     this.game_data.current_midi_time = this.game_data.target_time_for_next_note - 0.0001;
                     this.game_data.midi_playing = false;
-                    console.log(
-                        `[GameState] Stopwatch reached threshold: ${this.game_data.target_time_for_next_note.toFixed(3)}s (paused at ${this.game_data.current_midi_time.toFixed(4)}s)`,
-                    );
                 }
 
                 // Update MIDI playback and consume note indicators
-                // We call this even if we just hit the threshold to ensure notes at the target time are played
                 if (this.game_data.midi_loaded) {
                     const played_note_ids = this.audio_manager.update_midi_playback(
                         this.game_data.current_midi_time,
                         this.game_data.skipped_midi_notes,
                     );
-                    const current_time = performance.now();
-                    const note_id_to_indicator = new Map<number, NoteIndicatorData>();
-                    for (const ind of this.game_data.note_indicators) {
-                        note_id_to_indicator.set(ind.note_id, ind);
-                    }
-
-                    const processed_hits = new Set<string>();
-                    for (const note_id of played_note_ids) {
-                        const indicator = note_id_to_indicator.get(note_id);
-                        if (indicator) {
-                            indicator.is_consumed = true;
-                            // Only spawn one set of animations per (row, time) hit to improve performance
-                            const hit_key = `${indicator.row_index}_${indicator.time}`;
-                            if (!processed_hits.has(hit_key)) {
-                                processed_hits.add(hit_key);
-                                const target_row = this.game_data.rows[indicator.row_index];
-                                if (target_row) {
-                                    for (const tile of target_row.tiles) {
-                                        if (tile.is_holding) {
-                                            tile.last_note_played_at = current_time;
-                                            tile.active_circle_animations.push(current_time);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    this.spawn_note_hit_animations(played_note_ids);
                 }
             }
 
@@ -542,6 +586,199 @@ export class GameStateManager {
         }
 
         this.update_active_row();
+        this.check_and_handle_endless_loop();
+    }
+
+    private check_and_handle_endless_loop(): void {
+        if (this.game_data.game_mode === GameMode.ONE_ROUND) return;
+        if (this.game_data.raw_level_rows.length === 0) return;
+
+        const musics = this.game_data.musics_metadata;
+        if (musics.length === 0) return;
+
+        const last_music = musics[musics.length - 1];
+        if (!last_music) return;
+
+        // Check if we reached the last section — regenerate once per loop
+        if (this.game_data.current_music_index === musics.length - 1) {
+            const rows_per_loop = last_music.end_row_index;
+            const expected_total_rows = (this.game_data.loop_count + 2) * rows_per_loop + 1;
+
+            if (this.game_data.rows.length < expected_total_rows) {
+                console.log(
+                    `[GameState] Reached last section, regenerating level rows for loop ${this.game_data.loop_count + 1}`,
+                );
+                this.append_level_loop();
+
+                // Performance Optimization: aggressive array footprint reduction!
+                // Cut loose unneeded NoteIndicator components floating in long-passed loop planes.
+                const cleanup_threshold_index = this.game_data.active_row_index - 100;
+                this.game_data.note_indicators = this.game_data.note_indicators.filter(
+                    ind => ind.row_index >= cleanup_threshold_index,
+                );
+            }
+        }
+    }
+
+    /**
+     * Appends a new set of level rows for endless mode looping.
+     * Uses the stored raw_level_rows (RowTypeResult[]) to regenerate row data.
+     * For non-challenge mode, TPS is NOT bumped here — instead it is bumped
+     * when the player presses the first tile of the first section of the new loop
+     * (handled in check_and_update_music_for_row).
+     */
+    private append_level_loop(): void {
+        const raw_rows = this.game_data.raw_level_rows;
+        if (raw_rows.length === 0) return;
+
+        const current_rows = this.game_data.rows;
+        const last_existing_row = current_rows[current_rows.length - 1];
+        if (!last_existing_row) return;
+
+        const base_row_index = current_rows.length;
+        let current_y = last_existing_row.y_position;
+        let last_single_lane = 0;
+        if (last_existing_row.tiles.length > 0) {
+            last_single_lane = last_existing_row.tiles[0]?.lane_index ?? 0;
+        }
+
+        // Generate new rows from raw level data
+        for (let i = 0; i < raw_rows.length; i++) {
+            const row_data = raw_rows[i];
+            if (!row_data) continue;
+
+            const row_height = row_data.height_multiplier * SCREEN_CONFIG.BASE_ROW_HEIGHT;
+            current_y -= row_height;
+            const row_index = base_row_index + i;
+            const preceding_row = current_rows[current_rows.length - 1];
+            let tiles: TileData[] = [];
+
+            if (row_data.type === RowType.SINGLE) {
+                let lane: number;
+                if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
+                    const occupied = preceding_row.tiles.map(r => r.lane_index);
+                    const empty_lanes = [0, 1, 2, 3].filter(s => !occupied.includes(s));
+                    const chosen = empty_lanes[Math.floor(Math.random() * empty_lanes.length)];
+                    lane = chosen ?? 0;
+                } else {
+                    const available = [0, 1, 2, 3].filter(s => s !== last_single_lane);
+                    const chosen = available[Math.floor(Math.random() * available.length)];
+                    lane = chosen ?? 0;
+                }
+                tiles = [create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0)];
+                last_single_lane = lane;
+            } else if (row_data.type === RowType.DOUBLE) {
+                const lanes = this.determine_double_lanes_from_row(preceding_row ?? null);
+                tiles = lanes.map(lane => create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0));
+            }
+
+            current_rows.push({
+                row_index,
+                row_type: row_data.type,
+                height_multiplier: row_data.height_multiplier,
+                y_position: current_y,
+                height: row_height,
+                tiles,
+                is_completed: row_data.type === RowType.EMPTY,
+                is_active: false,
+            });
+        }
+
+        const original_total = this.game_data.raw_level_rows.length;
+        const original_musics = this.game_data.musics_metadata.filter(m => m.start_row_index < original_total);
+        const rows_per_loop = original_total;
+        const new_loop_offset = (this.game_data.loop_count + 1) * rows_per_loop;
+
+        let tps_accumulator =
+            this.game_data.musics_metadata[this.game_data.musics_metadata.length - 1]?.tps ?? SCREEN_CONFIG.DEFAULT_TPS;
+
+        for (const music of original_musics) {
+            if (this.game_data.game_mode === GameMode.ENDLESS_FIXED) {
+                tps_accumulator += 0.333;
+            }
+            this.game_data.musics_metadata.push({
+                id: music.id,
+                tps: this.game_data.game_mode === GameMode.ENDLESS_FIXED ? tps_accumulator : music.tps,
+                bpm: music.bpm,
+                base_beats: music.base_beats,
+                start_row_index: music.start_row_index + new_loop_offset,
+                end_row_index: music.end_row_index + new_loop_offset,
+                row_count: music.row_count,
+            });
+        }
+
+        // Extend level_row_timings for the new rows
+        const new_timings = calculate_level_row_timings(current_rows, this.game_data.musics_metadata);
+        this.game_data.level_row_timings = new_timings;
+
+        // Generate mirrored NoteIndicatorData & MIDI notes for the appended loop
+        const loop_0_indicators = this.game_data.note_indicators.filter(ind => ind.row_index <= original_total);
+        const AUDIO_MANAGER = get_audio_manager();
+
+        for (const ind of loop_0_indicators) {
+            if (ind.time_fraction === undefined || ind.track_idx === undefined || ind.midi === undefined) continue;
+
+            const new_row_index = ind.row_index + new_loop_offset;
+            const new_row_timing = new_timings[new_row_index - 1]; // 0-based
+            if (!new_row_timing) continue;
+
+            const new_time =
+                new_row_timing.start_time + ind.time_fraction * (new_row_timing.end_time - new_row_timing.start_time);
+
+            const new_row = current_rows.find(r => r.row_index === new_row_index);
+            if (!new_row) continue;
+
+            const row_bottom = new_row.y_position + new_row.height;
+            const base_height_edge = row_bottom - SCREEN_CONFIG.BASE_ROW_HEIGHT;
+            const indicator_y = base_height_edge - ind.time_fraction * new_row.height - 8; // INDICATOR_Y_OFFSET = -8
+
+            // Recompute note_id with new time to prevent collisions, while keeping track and midi
+            const new_note_id = Math.round(new_time * 1000) * 1000000 + ind.track_idx * 1000 + ind.midi;
+
+            this.game_data.note_indicators.push({
+                note_id: new_note_id,
+                row_index: new_row_index,
+                x: ind.x,
+                y: indicator_y,
+                width: ind.width,
+                height: ind.height,
+                time: new_time,
+                time_fraction: ind.time_fraction,
+                track_idx: ind.track_idx,
+                midi: ind.midi,
+                is_consumed: false,
+            });
+        }
+
+        // Generate dynamically scheduled MIDI notes matching the row timing scaling
+        for (const mn of this.game_data.loop_0_midi_notes) {
+            const new_row_index = mn.row_index + new_loop_offset;
+            const new_row_timing = new_timings[new_row_index - 1]; // 0-based
+            if (!new_row_timing) continue;
+
+            const new_time =
+                new_row_timing.start_time + mn.time_fraction * (new_row_timing.end_time - new_row_timing.start_time);
+            AUDIO_MANAGER.add_dynamic_midi_note(mn.track_idx, mn.midi, new_time);
+        }
+
+        this.game_data.loop_count++;
+        console.log(`[GameState] Loop ${this.game_data.loop_count} appended: total rows now ${current_rows.length}`);
+    }
+
+    private determine_double_lanes_from_row(preceding_row: RowData | null): [number, number] {
+        if (preceding_row === null) {
+            return Math.random() < 0.5 ? [0, 2] : [1, 3];
+        }
+        if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
+            const single_lane = preceding_row.tiles[0]?.lane_index;
+            if (single_lane === undefined) return Math.random() < 0.5 ? [0, 2] : [1, 3];
+            return single_lane === 0 || single_lane === 2 ? [1, 3] : [0, 2];
+        }
+        if (preceding_row.row_type === RowType.DOUBLE) {
+            const occupied = preceding_row.tiles.map(r => r.lane_index);
+            return occupied.includes(0) && occupied.includes(2) ? [1, 3] : [0, 2];
+        }
+        return Math.random() < 0.5 ? [0, 2] : [1, 3];
     }
 
     update_bot(): void {
@@ -619,7 +856,18 @@ export class GameStateManager {
             }
         }
 
-        const has_incomplete = this.game_data.rows.some(r => !r.is_completed);
+        // Fast O(1) evaluation starting only at safe bounds using local index scanning
+        const start_idx = Math.max(0, this.game_data.active_row_index - 5);
+        let has_incomplete = false;
+
+        for (let i = start_idx; i < this.game_data.rows.length; i++) {
+            const row = this.game_data.rows[i];
+            if (row && !row.is_completed) {
+                has_incomplete = true;
+                break;
+            }
+        }
+
         if (!has_incomplete && this.game_data.rows.length > 0) {
             const last_row = this.game_data.rows[this.game_data.rows.length - 1];
             if (last_row) {
@@ -631,13 +879,26 @@ export class GameStateManager {
             }
         }
 
-        const visible_incomplete_rows = this.game_data.rows.filter(row => {
-            return !row.is_completed && is_row_visible(row, this.game_data.scroll_offset);
-        });
+        // Find the lowest visible incomplete row
+        const visible_incomplete_rows: RowData[] = [];
+        for (let i = start_idx; i < this.game_data.rows.length; i++) {
+            const row = this.game_data.rows[i];
+            if (!row) continue;
+
+            if (!row.is_completed && is_row_visible(row, this.game_data.scroll_offset)) {
+                visible_incomplete_rows.push(row);
+            }
+
+            // Because rows build up from the bottom going strictly negative in Y positions,
+            // we can confidently break if we exceed the visible screen Y plane backwards! (past 0 point)
+            const row_bottom_screen_y = row.y_position + this.game_data.scroll_offset + row.height;
+            if (row_bottom_screen_y < 0) {
+                break;
+            }
+        }
 
         if (visible_incomplete_rows.length > 0) {
             visible_incomplete_rows.sort((a, b) => b.y_position - a.y_position);
-
             const new_active_row = visible_incomplete_rows[0];
             if (new_active_row) {
                 this.game_data.active_row_index = new_active_row.row_index;
@@ -970,8 +1231,8 @@ export class GameStateManager {
             this.game_data.current_midi_time = timing.start_time;
         }
 
+        this.game_data.current_dt_press_count++;
         if (row.row_type === RowType.DOUBLE) {
-            this.game_data.current_dt_press_count++;
             // Tiered timing for double tiles:
             // 1st press resumes stopwatch until the row's midpoint.
             // 2nd press (hitting immediately) extends the target to the row's end without jumping time.
@@ -992,9 +1253,7 @@ export class GameStateManager {
                 this.game_data.current_midi_time,
                 this.game_data.skipped_midi_notes,
             );
-            for (const note_id of played_note_ids) {
-                consume_indicator_by_note_id(this.game_data.note_indicators, note_id);
-            }
+            this.spawn_note_hit_animations(played_note_ids);
         }
     }
 
@@ -1165,7 +1424,22 @@ export class GameStateManager {
     }
 
     get_visible_rows(): RowData[] {
-        return this.game_data.rows.filter(row => is_row_visible(row, this.game_data.scroll_offset));
+        const visible_rows: RowData[] = [];
+        const start_idx = Math.max(0, this.game_data.active_row_index - 50);
+        for (let i = start_idx; i < this.game_data.rows.length; i++) {
+            const row = this.game_data.rows[i];
+            if (!row) continue;
+
+            if (is_row_visible(row, this.game_data.scroll_offset)) {
+                visible_rows.push(row);
+            }
+
+            const row_bottom_screen_y = row.y_position + this.game_data.scroll_offset + row.height;
+            if (row_bottom_screen_y < 0) {
+                break;
+            }
+        }
+        return visible_rows;
     }
 
     get_game_over_tile(): TileData | null {
@@ -1183,7 +1457,50 @@ export class GameStateManager {
      * Gets the current score data for rendering.
      */
     get_score_data(): ScoreData {
-        return this.score_manager.get_score_data();
+        const data = this.score_manager.get_score_data();
+        if (this.game_data.game_mode === GameMode.ENDLESS_CHALLENGE) {
+            return {
+                ...data,
+                animation: {
+                    ...data.animation,
+                    current_scale: 1.0,
+                },
+                override_display_text: this.game_data.current_tps.toFixed(3),
+            };
+        }
+        return data;
+    }
+
+    private spawn_note_hit_animations(played_note_ids: number[]): void {
+        if (played_note_ids.length === 0) return;
+
+        const current_time = performance.now();
+        const note_id_to_indicator = new Map<number, NoteIndicatorData>();
+        for (const ind of this.game_data.note_indicators) {
+            note_id_to_indicator.set(ind.note_id, ind);
+        }
+
+        const processed_hits = new Set<string>();
+        for (const note_id of played_note_ids) {
+            const indicator = note_id_to_indicator.get(note_id);
+            if (indicator) {
+                indicator.is_consumed = true;
+                // Only spawn one set of animations per (row, time) hit to improve performance
+                const hit_key = `${indicator.row_index}_${indicator.time}`;
+                if (!processed_hits.has(hit_key)) {
+                    processed_hits.add(hit_key);
+                    const target_row = this.game_data.rows[indicator.row_index];
+                    if (target_row) {
+                        for (const tile of target_row.tiles) {
+                            if (tile.is_holding) {
+                                tile.last_note_played_at = current_time;
+                                tile.active_circle_animations.push(current_time);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**

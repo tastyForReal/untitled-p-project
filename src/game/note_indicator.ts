@@ -27,14 +27,14 @@ export function build_note_indicators(
     }
 
     // Collect all notes from all tracks with unique IDs
-    const all_notes: { note: MidiNote; note_id: number }[] = [];
+    const all_notes: { note: MidiNote; note_id: number; track_idx: number }[] = [];
     for (let track_idx = 0; track_idx < midi_json.tracks.length; track_idx++) {
         const track = midi_json.tracks[track_idx];
         if (!track) continue;
         for (const note of track.notes) {
             // Include track_idx in note_id to make it truly unique across tracks
             const note_id = Math.round(note.time * 1000) * 1000000 + track_idx * 1000 + note.midi;
-            all_notes.push({ note, note_id });
+            all_notes.push({ note, note_id, track_idx });
         }
     }
 
@@ -81,7 +81,7 @@ export function build_note_indicators(
     }
 
     // For each note, find which row's time window it falls into and place an indicator
-    for (const { note, note_id } of all_notes) {
+    for (const { note, note_id, track_idx } of all_notes) {
         // Skip notes with MIDI values outside valid range
         if (note.midi < 21 || note.midi > 108) {
             continue;
@@ -134,6 +134,9 @@ export function build_note_indicators(
             width: INDICATOR_SIZE,
             height: INDICATOR_SIZE,
             time: note.time,
+            time_fraction,
+            track_idx,
+            midi: note.midi,
             is_consumed: false,
         });
     }

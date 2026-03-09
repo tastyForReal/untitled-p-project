@@ -2,7 +2,7 @@ import { GPUContext } from '../renderers/gpu_context.js';
 import { Renderer } from '../renderers/renderer.js';
 import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from './game_state.js';
 import { InputHandler } from './input_handler.js';
-import { GameState, InputType } from './types.js';
+import { GameState, GameMode, EndlessConfig, InputType } from './types.js';
 import { LevelData, RowTypeResult } from './json_level_reader.js';
 import { ScoreRenderer } from './score_renderer.js';
 
@@ -46,7 +46,6 @@ export class GameController {
 
         this.input_handler.initialize(canvas);
 
-        // Initialize the score renderer with the font renderer from the main renderer
         this.score_renderer = new ScoreRenderer(this.renderer.get_font_renderer());
 
         this.setup_input_callbacks();
@@ -68,8 +67,6 @@ export class GameController {
 
     /**
      * Routes the physical pointer click or keyboard tap into the game logic.
-     * Ignores input if the game is already in a GAME OVER state, or if keyboard input
-     * was queued (to avoid double-processing via simulated click events on some platforms).
      */
     private handle_lane_input(
         lane_index: number,
@@ -95,30 +92,18 @@ export class GameController {
         }
     }
 
-    /**
-     * Public method to toggle pause state, can be called from UI buttons.
-     */
     toggle_pause(allow_with_bot: boolean = false): void {
         this.game_state.toggle_pause(allow_with_bot);
     }
 
-    /**
-     * Returns true if the game is currently paused.
-     */
     is_paused(): boolean {
         return this.game_state.is_paused();
     }
 
-    /**
-     * Returns true if the game has started (first tile pressed).
-     */
     has_game_started(): boolean {
         return this.game_state.has_game_started();
     }
 
-    /**
-     * Returns true if the yellow start tile has been pressed.
-     */
     is_start_tile_pressed(): boolean {
         return this.game_state.is_start_tile_pressed();
     }
@@ -193,14 +178,19 @@ export class GameController {
     }
 
     /**
-     * Loads a complete level with rows and music metadata for dynamic TPS
+     * Loads a complete level with rows and music metadata for dynamic TPS.
      */
-    load_level(level_data: LevelData): void {
-        this.game_state.load_level(level_data);
+    load_level(
+        level_data: LevelData,
+        game_mode: GameMode = GameMode.ONE_ROUND,
+        endless_config: EndlessConfig | null = null,
+        filename: string = '',
+    ): void {
+        this.game_state.load_level(level_data, game_mode, endless_config, filename);
     }
 
     /**
-     * Loads custom rows only (backward compatibility, uses default TPS)
+     * Loads custom rows only (backward compatibility, uses default TPS).
      */
     load_custom_rows(level_rows: RowTypeResult[]): void {
         this.game_state.load_custom_rows(level_rows);

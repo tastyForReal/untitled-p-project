@@ -1,3 +1,5 @@
+import { MidiJson } from './midi_types.js';
+
 export const SCREEN_CONFIG = {
     WIDTH: 405,
     HEIGHT: 720,
@@ -20,6 +22,11 @@ export enum RowType {
     DOUBLE = 1,
     EMPTY = 2,
     START = 3,
+}
+
+export interface RowTypeResult {
+    type: RowType;
+    height_multiplier: number;
 }
 
 export interface TileData {
@@ -72,6 +79,19 @@ export enum GameState {
     GAME_WON = 5,
 }
 
+export enum GameMode {
+    ONE_ROUND = 0,
+    ENDLESS_FIXED = 1,
+    ENDLESS_CHALLENGE = 2,
+}
+
+export interface EndlessConfig {
+    mode: GameMode;
+    fixed_tps_values?: number[];
+    starting_tps?: number;
+    acceleration_rate?: number;
+}
+
 export interface GameOverFlashState {
     tile: TileData;
     start_time: number;
@@ -112,12 +132,34 @@ export interface GameData {
     current_dt_press_count: number;
     skipped_midi_notes: number[];
     level_row_timings: RowTiming[];
+    game_mode: GameMode;
+    endless_config: EndlessConfig | null;
+    loop_count: number;
+    current_filename: string;
+    raw_level_rows: RowTypeResult[];
+    loop_0_midi_notes: {
+        track_idx: number;
+        midi: number;
+        original_time: number;
+        row_index: number;
+        time_fraction: number;
+    }[];
 }
 
 export interface RowTiming {
     start_time: number;
     mid_time: number;
     end_time: number;
+}
+
+/**
+ * Combined output for all musics in a level file
+ */
+export interface LevelData {
+    rows: RowTypeResult[];
+    musics: MusicMetadata[];
+    base_bpm: number;
+    midi_json: MidiJson | null;
 }
 
 export interface NoteIndicatorData {
@@ -128,12 +170,17 @@ export interface NoteIndicatorData {
     width: number;
     height: number;
     time: number;
+    time_fraction?: number;
+    track_idx?: number;
+    midi?: number;
     is_consumed: boolean;
 }
 
 export interface MusicMetadata {
     id: number;
     tps: number;
+    bpm: number;
+    base_beats: number;
     start_row_index: number;
     end_row_index: number;
     row_count: number;

@@ -8,7 +8,8 @@ import {
     NOTE_TO_MIDI,
     BASE_BEATS_MAP,
 } from './midi_types.js';
-import { RowType } from './types.js';
+import { RowType, MusicMetadata, LevelData } from './types.js';
+import type { RowTypeResult } from './types.js';
 
 // =============================================================================
 // MIDI Conversion Functions
@@ -992,31 +993,8 @@ export function convert_raw_to_midi_json(
 // Level Loader Types and Functions
 // =============================================================================
 
-export interface RowTypeResult {
-    type: RowType;
-    height_multiplier: number;
-}
-
-/**
- * Metadata for a music section within the level (internal representation)
- */
-export interface MusicMetadata {
-    id: number;
-    tps: number; // Tiles per second
-    start_row_index: number; // Index of first row in combined array
-    end_row_index: number; // Index after last row (exclusive)
-    row_count: number; // Number of rows in this music
-}
-
-/**
- * Complete level data including rows and music metadata
- */
-export interface LevelData {
-    rows: RowTypeResult[];
-    musics: MusicMetadata[];
-    base_bpm: number;
-    midi_json: MidiJson | null; // Formatted MIDI data for playback
-}
+// RowTypeResult is defined in types.ts and re-exported here for backward compatibility
+export type { RowTypeResult, LevelData, MusicMetadata } from './types.js';
 
 interface ParsedComponent {
     duration: number;
@@ -1427,18 +1405,18 @@ export function process_music_input_data(data: MusicInputFile): MusicOutput[] {
 }
 
 /**
- * Calculate TPS (Tiles Per Second) for a music entry
- * TPS = bpm / baseBeats / 60
+ * Result from selecting and loading a music file.
  */
-function calculate_tps(music: MusicEntry, base_bpm: number): number {
-    const bpm = music.bpm !== undefined ? music.bpm : base_bpm;
-    return bpm / music.baseBeats / 60;
+export interface LoadedMusicFile {
+    level_data: LevelData;
+    filename: string;
 }
 
 /**
- * Opens a file picker and loads a music JSON file
+ * Opens a file picker and loads a music JSON file.
+ * Returns the parsed level data along with the selected filename.
  */
-export async function select_and_load_music_file(): Promise<LevelData> {
+export async function select_and_load_music_file(): Promise<LoadedMusicFile> {
     return new Promise((resolve, reject) => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -1457,7 +1435,7 @@ export async function select_and_load_music_file(): Promise<LevelData> {
                 const text = await file.text();
                 const json = JSON.parse(text);
                 const level_data = load_level_from_json(json);
-                resolve(level_data);
+                resolve({ level_data, filename: file.name });
             } catch (error) {
                 reject(error instanceof Error ? error : new Error('Failed to load file'));
             }
@@ -1486,11 +1464,14 @@ export function load_level_from_json(json: unknown): LevelData {
             scores: music.scores,
         });
 
-        const tps = calculate_tps(music, data.baseBpm);
+        const bpm = music.bpm !== undefined ? music.bpm : data.baseBpm;
+        const tps = bpm / music.baseBeats / 60;
 
         musics_metadata.push({
             id: music.id,
             tps,
+            bpm,
+            base_beats: music.baseBeats,
             start_row_index: current_row_index,
             end_row_index: current_row_index + rows.length,
             row_count: rows.length,

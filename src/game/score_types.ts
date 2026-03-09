@@ -65,4 +65,6 @@ export interface ScoreData {
     animation: ScoreAnimationState;
     /** Active bonus labels currently being displayed */
     bonus_labels: BonusLabel[];
+    /** Optional override text to display instead of total_score (e.g., TPS in challenge mode) */
+    override_display_text?: string;
 }

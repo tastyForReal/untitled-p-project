@@ -12,6 +12,7 @@ export class AudioManager {
     private midi_data: MidiJson | null = null;
     private last_played_note_index: number = -1;
     private played_notes: Set<number> = new Set(); // Track played notes by their start time
+    private track_pointers: number[] = [];
 
     async initialize(): Promise<boolean> {
         if (this.is_initialized) {
@@ -214,6 +215,7 @@ export class AudioManager {
         const previous_index = this.last_played_note_index;
         const previous_count = this.played_notes.size;
         this.last_played_note_index = -1;
+        this.track_pointers = new Array(this.midi_data?.tracks.length ?? 0).fill(0);
         this.played_notes.clear();
         console.log(
             `[AudioManager] Playback reset - cleared ${previous_count} played notes (was at index ${previous_index})`,
@@ -242,46 +244,53 @@ export class AudioManager {
         for (let track_idx = 0; track_idx < this.midi_data.tracks.length; track_idx++) {
             const track = this.midi_data.tracks[track_idx];
             if (!track) continue;
-            for (let i = 0; i < track.notes.length; i++) {
-                const note = track.notes[i];
-                if (!note) continue;
 
-                // Create a unique identifier for this note that includes the track index
-                const note_id = Math.round(note.time * 1000) * 1000000 + track_idx * 1000 + note.midi;
+            let pointer = this.track_pointers[track_idx] || 0;
 
-                // Check if note should be played:
-                // 1. It must be at or before the current playback time
-                // 2. It must not have been played already
-                // 3. It must be within a reasonable lookback window (1 second) to avoid bursts on start
+            while (pointer < track.notes.length) {
+                const note = track.notes[pointer];
+                if (!note) {
+                    pointer++;
+                    continue;
+                }
+
+                // If note time is in the future, we can stop evaluating this track since notes are chronologically sorted.
+                if (note.time > current_time) {
+                    break;
+                }
+
                 const lookback_window = 2.0;
-                if (
-                    note.time <= current_time &&
-                    note.time > current_time - lookback_window &&
-                    !this.played_notes.has(note_id)
-                ) {
-                    // Check if note should be skipped (e.g., due to early release of long tile)
-                    const is_skipped = skipped_note_ids.includes(note_id);
 
-                    if (!is_skipped) {
-                        // Only play MIDI notes in valid range (21-108)
-                        if (note.midi >= 21 && note.midi <= 108) {
-                            this.play_note_by_midi(note.midi);
-                            notes_played_this_update++;
+                // Check if the note falls within the lookback window. If not, it's too old and we skip playing it.
+                if (note.time > current_time - lookback_window) {
+                    const note_id = Math.round(note.time * 1000) * 1000000 + track_idx * 1000 + note.midi;
+
+                    if (!this.played_notes.has(note_id)) {
+                        // Check if note should be skipped (e.g., due to early release of long tile)
+                        const is_skipped = skipped_note_ids.includes(note_id);
+
+                        if (!is_skipped) {
+                            // Only play MIDI notes in valid range (21-108)
+                            if (note.midi >= 21 && note.midi <= 108) {
+                                this.play_note_by_midi(note.midi);
+                                notes_played_this_update++;
+                            }
+                        } else {
+                            notes_skipped_this_update++;
                             console.log(
-                                `[AudioManager] Playing note: MIDI ${note.midi} at time ${note.time.toFixed(3)}s (current: ${current_time.toFixed(3)}s, track: ${track_idx})`,
+                                `[AudioManager] Skipping note (early release): MIDI ${note.midi} at time ${note.time.toFixed(3)}s`,
                             );
                         }
-                    } else {
-                        notes_skipped_this_update++;
-                        console.log(
-                            `[AudioManager] Skipping note (early release): MIDI ${note.midi} at time ${note.time.toFixed(3)}s`,
-                        );
-                    }
 
-                    this.played_notes.add(note_id);
-                    played_note_ids.push(note_id);
+                        this.played_notes.add(note_id);
+                        played_note_ids.push(note_id);
+                    }
                 }
+
+                pointer++;
             }
+
+            this.track_pointers[track_idx] = pointer;
         }
 
         if (notes_played_this_update > 0 || notes_skipped_this_update > 0) {
@@ -294,7 +303,7 @@ export class AudioManager {
         const max_note_time = current_time - 10; // Keep notes from last 10 seconds
         let cleaned_count = 0;
         for (const note_id of this.played_notes) {
-            const note_time = Math.floor(note_id / 1000) / 1000;
+            const note_time = Math.floor(note_id / 1000000) / 1000;
             if (note_time < max_note_time) {
                 this.played_notes.delete(note_id);
                 cleaned_count++;
@@ -305,6 +314,26 @@ export class AudioManager {
         }
 
         return played_note_ids;
+    }
+
+    /**
+     * Dynamically adds a note to the loaded MIDI tracks for endless looped sections.
+     */
+    add_dynamic_midi_note(track_idx: number, midi: number, time: number): void {
+        if (!this.midi_data) return;
+        const track = this.midi_data.tracks[track_idx];
+        if (!track) return;
+
+        track.notes.push({
+            name: '',
+            midi,
+            time,
+            velocity: 1,
+            duration: 0.5,
+            ticks: 0,
+            duration_ticks: 0,
+            note_off_velocity: 0,
+        });
     }
 
     /**

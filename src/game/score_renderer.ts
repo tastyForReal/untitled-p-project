@@ -79,7 +79,7 @@ function render_score_counter(
     score_data: ScoreData,
     render_pass: GPURenderPassEncoder,
 ): void {
-    const score_text = `${score_data.total_score}`;
+    const score_text = score_data.override_display_text ?? `${score_data.total_score}`;
     const scale = calculate_font_scale(SCORE_COUNTER_CONFIG.FONT_SIZE) * score_data.animation.current_scale;
 
     // Center position for the score text

@@ -66,7 +66,7 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         game_mode: GameMode.ONE_ROUND,
         endless_config: null,
         loop_count: 0,
-        current_filename: 'Heart of the Tiles',
+        current_filename: 'Untitled P Project',
         raw_level_rows: [],
         loop_0_midi_notes: [],
     };
@@ -253,7 +253,7 @@ export class GameStateManager {
         this.audio_manager.stop_all_samples();
         this.audio_manager.clear_midi_data();
         this.score_manager.reset();
-        document.title = 'Heart of the Tiles';
+        document.title = 'Untitled P Project';
     }
 
     /**

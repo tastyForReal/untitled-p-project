@@ -140,7 +140,7 @@ function setup_level_loader(game_controller: GameController): void {
             );
 
             // Update window title
-            document.title = `${display_name} - Heart of the Tiles`;
+            document.title = `${display_name} - Untitled P Project`;
 
             if (load_status) {
                 const music_count = modified_level_data.musics.length;

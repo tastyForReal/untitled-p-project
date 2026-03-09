@@ -1,8 +1,8 @@
 {
     "$schema": "https://json.schemastore.org/package.json",
-    "name": "heart-of-the-tiles",
+    "name": "untitled-p-project",
     "author": "tastyForReal",
-    "description": "Heart of the Tiles - A love letter to the mobile game \"Piano Tiles 2\"",
+    "description": "Untitled P Project - A \"Piano Tiles 2\" FOSS clone.",
     "license": "MIT",
     "keywords": [
         "electron",

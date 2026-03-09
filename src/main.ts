@@ -15,7 +15,7 @@ function create_window(): void {
         minHeight: window_height,
         resizable: true,
         frame: true,
-        title: 'Heart of the Tiles',
+        title: 'Untitled P Project',
         backgroundColor: '#FFFFFF',
         webPreferences: {
             nodeIntegration: false,

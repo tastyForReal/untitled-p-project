@@ -300,8 +300,8 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
                 page2.style.display = 'none';
                 back_btn.style.display = 'none';
                 action_btn.textContent = 'Next';
-                title.textContent = 'Choose Your Rhythm';
-                subtitle.textContent = 'Select how you want to experience the beat.';
+                title.textContent = 'Choose Gameplay Mode';
+                subtitle.textContent = 'Select how you want to play this level.';
             } else {
                 page1.style.display = 'none';
                 page2.style.display = '';

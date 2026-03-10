@@ -1,3 +1,4 @@
+import { log_error, log_message, log_warning } from './game/logger.js';
 import { GameController } from './game/game_controller.js';
 import { SCREEN_CONFIG } from './game/types.js';
 import { select_and_load_music_file, LevelData } from './game/json_level_reader.js';
@@ -15,7 +16,7 @@ async function main(): Promise<void> {
     const canvas = document.getElementById('game_canvas') as HTMLCanvasElement | null;
 
     if (!canvas) {
-        console.error('Canvas element not found');
+        log_error('Canvas element not found');
         return;
     }
 
@@ -31,7 +32,7 @@ async function main(): Promise<void> {
     const initialized = await game_controller.initialize(canvas);
 
     if (!initialized) {
-        console.error('Failed to initialize game');
+        log_error('Failed to initialize game');
         const error_div = document.getElementById('error_message');
         if (error_div) {
             error_div.style.display = 'block';
@@ -45,13 +46,13 @@ async function main(): Promise<void> {
         .initialize()
         .then(success => {
             if (success) {
-                console.log('Audio manager initialized successfully');
+                log_message('Audio manager initialized successfully');
             } else {
-                console.warn('Audio manager initialization failed');
+                log_warning('Audio manager initialization failed');
             }
         })
         .catch(error => {
-            console.warn('Audio manager initialization error:', error);
+            log_warning('Audio manager initialization error:', error);
         });
 
     window.addEventListener('resize', () => {
@@ -78,7 +79,7 @@ function setup_level_loader(game_controller: GameController): void {
     const load_status = document.getElementById('load_status');
 
     if (!load_button) {
-        console.error('Load level button not found');
+        log_error('Load level button not found');
         return;
     }
 
@@ -143,12 +144,12 @@ function setup_level_loader(game_controller: GameController): void {
                 }, 3000);
             }
 
-            console.log(
+            log_message(
                 `Loaded level with ${modified_level_data.rows.length} rows from ${modified_level_data.musics.length} music(s)`,
             );
-            console.log(`Base BPM: ${modified_level_data.base_bpm}`);
+            log_message(`Base BPM: ${modified_level_data.base_bpm}`);
             modified_level_data.musics.forEach(m => {
-                console.log(
+                log_message(
                     `  Music ${m.id}: TPS=${m.tps.toFixed(2)}, rows=${m.row_count}, range=[${m.start_row_index}, ${m.end_row_index})`,
                 );
             });
@@ -160,7 +161,7 @@ function setup_level_loader(game_controller: GameController): void {
                 return;
             }
 
-            console.error('Failed to load level:', error);
+            log_error('Failed to load level:', error);
 
             if (load_status) {
                 load_status.textContent = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -179,7 +180,7 @@ function setup_pause_play_button(game_controller: GameController): void {
     const pause_play_button = document.getElementById('pause_play_btn');
 
     if (!pause_play_button) {
-        console.error('Pause/play button not found');
+        log_error('Pause/play button not found');
         return;
     }
 

@@ -1,3 +1,5 @@
+import { log_message } from '../game/logger.js';
+
 export interface IntRect {
     x: number;
     y: number;
@@ -141,7 +143,7 @@ export function parse_spritesheet(plist_content: string): SpritesheetData {
         }
     }
 
-    console.log(
+    log_message(
         `[Spritesheet] Parsed ${Object.keys(frames).length} frames. Image: ${meta.image}, Size: ${meta.size.x}x${meta.size.y}`,
     );
     return { frames, meta: meta as any };

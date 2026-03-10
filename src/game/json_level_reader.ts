@@ -1,3 +1,4 @@
+import { log_error, log_message, log_warning } from './logger.js';
 import {
     ParsedMessage,
     ParsedTrack,
@@ -585,15 +586,15 @@ export function parse_song(
             const music_bpm = music.bpm !== undefined ? Number(music.bpm) : (baseBpm ?? 120);
             const calculated_bpm = music_bpm * base_beats_multiplier;
 
-            console.log(
+            log_message(
                 `[MidiParser] Parsing part ${p}: BPM input=${music.bpm ?? 'undefined (using baseBpm: ' + (baseBpm ?? 120) + ')'}, baseBeats=${music.baseBeats}`,
             );
-            console.log(`  - base_beats_multiplier: ${base_beats_multiplier}`);
-            console.log(`  - music_bpm: ${music_bpm}`);
-            console.log(`  - calculated_bpm (effective): ${calculated_bpm.toFixed(2)}`);
+            log_message(`  - base_beats_multiplier: ${base_beats_multiplier}`);
+            log_message(`  - music_bpm: ${music_bpm}`);
+            log_message(`  - calculated_bpm (effective): ${calculated_bpm.toFixed(2)}`);
 
             if (isNaN(calculated_bpm) || calculated_bpm <= 0) {
-                console.warn(`[MidiParser] Invalid BPM detected: ${calculated_bpm}, using default 120`);
+                log_warning(`[MidiParser] Invalid BPM detected: ${calculated_bpm}, using default 120`);
             }
 
             const part: ParsedPart = {
@@ -606,25 +607,25 @@ export function parse_song(
                 try {
                     const score = music.scores[t];
                     if (!score) continue;
-                    console.log(`  - Parsing track ${t}: score length = ${score.length} chars`);
+                    log_message(`  - Parsing track ${t}: score length = ${score.length} chars`);
                     const track = parse_track(score, part.bpm, base_beats_multiplier);
-                    console.log(`    - Track parsed: ${track.messages.length} messages`);
+                    log_message(`    - Track parsed: ${track.messages.length} messages`);
                     part.tracks.push(track);
                 } catch (e) {
                     const error = e as Error;
-                    console.error(`[MidiParser] Error parsing track ${t + 1}:`);
-                    console.error(error);
+                    log_error(`[MidiParser] Error parsing track ${t + 1}:`);
+                    log_error(error);
                     throw new Error(`Track ${t + 1}:\n${error.message}`);
                 }
             }
 
             verify_track_length(part.tracks);
-            console.log(`  - Part ${p} complete: ${part.tracks.length} tracks verified`);
+            log_message(`  - Part ${p} complete: ${part.tracks.length} tracks verified`);
             parts.push(part);
         } catch (e) {
             const error = e as Error;
-            console.error(`[MidiParser] Error parsing part ${p + 1}:`);
-            console.error(error);
+            log_error(`[MidiParser] Error parsing part ${p + 1}:`);
+            log_error(error);
             throw new Error(`Part ${p + 1}:\n${error.message}`);
         }
     }
@@ -679,16 +680,16 @@ function calculate_part_duration(tracks: ParsedTrack[]): number {
 }
 
 export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
-    console.log(`[MidiParser] convert_to_midi_json: Processing ${parts.length} parts`);
+    log_message(`[MidiParser] convert_to_midi_json: Processing ${parts.length} parts`);
 
     const aligned_parts = align_tracks_across_parts(parts);
-    console.log(`[MidiParser] Tracks aligned across parts`);
+    log_message(`[MidiParser] Tracks aligned across parts`);
 
     const ppq = 960;
     const tempos: MidiTempo[] = [];
     const tracks: MidiTrack[] = [];
 
-    console.log(`[MidiParser] Using PPQ: ${ppq}`);
+    log_message(`[MidiParser] Using PPQ: ${ppq}`);
 
     const tick_scale = 1;
 
@@ -699,11 +700,11 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
         if (!part) continue;
 
         const actual_bpm = part.bpm / 30;
-        console.log(`[MidiParser] Processing part ${part_idx}:`);
-        console.log(`  - Effective BPM: ${part.bpm.toFixed(2)}`);
-        console.log(`  - Actual BPM: ${actual_bpm.toFixed(2)}`);
-        console.log(`  - Current ticks: ${current_ticks}`);
-        console.log(`  - Tracks in part: ${part.tracks.length}`);
+        log_message(`[MidiParser] Processing part ${part_idx}:`);
+        log_message(`  - Effective BPM: ${part.bpm.toFixed(2)}`);
+        log_message(`  - Actual BPM: ${actual_bpm.toFixed(2)}`);
+        log_message(`  - Current ticks: ${current_ticks}`);
+        log_message(`  - Tracks in part: ${part.tracks.length}`);
 
         tempos.push({
             ticks: Math.round(current_ticks * tick_scale),
@@ -725,16 +726,16 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
 
             const notes_before = output_track.notes.length;
             process_track_messages(track.messages, output_track, current_ticks, tick_scale);
-            console.log(`    - Track ${track_idx}: added ${output_track.notes.length - notes_before} notes`);
+            log_message(`    - Track ${track_idx}: added ${output_track.notes.length - notes_before} notes`);
         }
 
         const part_duration = calculate_part_duration(part.tracks);
-        console.log(`  - Part duration: ${part_duration} ticks`);
+        log_message(`  - Part duration: ${part_duration} ticks`);
         current_ticks += part_duration;
     }
 
-    console.log(`[MidiParser] Total ticks: ${current_ticks}`);
-    console.log(`[MidiParser] Calculating times for ${tracks.length} tracks...`);
+    log_message(`[MidiParser] Total ticks: ${current_ticks}`);
+    log_message(`[MidiParser] Calculating times for ${tracks.length} tracks...`);
 
     calculate_times(tracks, tempos, ppq);
 
@@ -746,7 +747,7 @@ export function convert_to_midi_json(parts: ParsedPart[]): MidiJson {
             total_notes += track.notes.length;
         }
     }
-    console.log(
+    log_message(
         `[MidiParser] Final result: ${tracks.length} tracks, ${total_notes} total notes, ${tempos.length} tempo changes`,
     );
 
@@ -849,30 +850,30 @@ export function convert_raw_to_midi_json(
     musics: Array<{ bpm?: string | number; baseBeats: string | number; scores: string[] }>,
     baseBpm?: number,
 ): MidiJson {
-    console.log(`[MidiParser] Converting ${musics.length} music parts to MIDI format...`);
-    console.log(`[MidiParser] Base BPM (fallback): ${baseBpm ?? 'not provided, will use 120'}`);
+    log_message(`[MidiParser] Converting ${musics.length} music parts to MIDI format...`);
+    log_message(`[MidiParser] Base BPM (fallback): ${baseBpm ?? 'not provided, will use 120'}`);
 
     for (let i = 0; i < musics.length; i++) {
         const music = musics[i];
         if (!music) continue;
-        console.log(
+        log_message(
             `[MidiParser] Music ${i}: BPM=${music.bpm ?? 'undefined'}, baseBeats=${music.baseBeats}, scores=${music.scores.length}`,
         );
     }
 
     const parts = parse_song(musics, baseBpm);
-    console.log(`[MidiParser] Parsed ${parts.length} parts`);
+    log_message(`[MidiParser] Parsed ${parts.length} parts`);
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
         if (!part) continue;
-        console.log(
+        log_message(
             `[MidiParser] Part ${i}: BPM=${part.bpm.toFixed(2)}, base_beats=${part.base_beats}, tracks=${part.tracks.length}`,
         );
     }
 
     const result = convert_to_midi_json(parts);
-    console.log(
+    log_message(
         `[MidiParser] Conversion complete: ${result.tracks.length} tracks, ${result.header.tempos.length} tempo changes`,
     );
 

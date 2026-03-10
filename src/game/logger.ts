@@ -26,7 +26,7 @@ export function is_logging_enabled_check(): boolean {
  * @param message - The message to log
  * @param optional_params - Additional parameters to log
  */
-export function log_message(message: string, ...optional_params: unknown[]): void {
+export function log_message(message: unknown, ...optional_params: unknown[]): void {
     if (is_logging_enabled) {
         console.log(message, ...optional_params);
     }
@@ -37,7 +37,7 @@ export function log_message(message: string, ...optional_params: unknown[]): voi
  * @param message - The warning message to log
  * @param optional_params - Additional parameters to log
  */
-export function log_warning(message: string, ...optional_params: unknown[]): void {
+export function log_warning(message: unknown, ...optional_params: unknown[]): void {
     if (is_logging_enabled) {
         console.warn(message, ...optional_params);
     }
@@ -48,6 +48,6 @@ export function log_warning(message: string, ...optional_params: unknown[]): voi
  * @param message - The error message to log
  * @param optional_params - Additional parameters to log
  */
-export function log_error(message: string, ...optional_params: unknown[]): void {
+export function log_error(message: unknown, ...optional_params: unknown[]): void {
     console.error(message, ...optional_params);
 }

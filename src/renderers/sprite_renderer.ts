@@ -1,3 +1,4 @@
+import { log_error } from '../game/logger.js';
 import { GPUContext } from './gpu_context.js';
 import { SCREEN_CONFIG } from '../game/types.js';
 import { parse_spritesheet, SpritesheetData, SpriteFrame } from './spritesheet_parser.js';
@@ -74,7 +75,7 @@ export class SpriteRenderer {
             this.initialized = true;
             return true;
         } catch (error) {
-            console.error('Failed to initialize SpriteRenderer:', error);
+            log_error('Failed to initialize SpriteRenderer:', error);
             return false;
         }
     }

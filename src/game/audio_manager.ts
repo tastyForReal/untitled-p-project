@@ -1,3 +1,4 @@
+import { log_error, log_message, log_warning } from './logger.js';
 import { MIDI_TO_NOTE, MidiJson } from './midi_types.js';
 
 const GAME_OVER_NOTES: string[] = ['c.mp3', 'e.mp3', 'g.mp3'];
@@ -26,10 +27,10 @@ export class AudioManager {
             await this.preload_samples();
             this.is_initialized = true;
 
-            console.log(`AudioManager initialized with ${this.sample_names.length} samples`);
+            log_message(`AudioManager initialized with ${this.sample_names.length} samples`);
             return true;
         } catch (error) {
-            console.error('Failed to initialize AudioManager:', error);
+            log_error('Failed to initialize AudioManager:', error);
             return false;
         }
     }
@@ -157,7 +158,7 @@ export class AudioManager {
             const response = await fetch(AUDIO_SAMPLES_PATH + encoded_name);
 
             if (!response.ok) {
-                console.warn(`Failed to load sample: ${sample_name}`);
+                log_warning(`Failed to load sample: ${sample_name}`);
                 return;
             }
 
@@ -165,17 +166,17 @@ export class AudioManager {
             const audio_buffer = await this.audio_context.decodeAudioData(array_buffer);
             this.audio_buffers.set(sample_name, audio_buffer);
         } catch (error) {
-            console.warn(`Error loading sample ${sample_name}:`, error);
+            log_warning(`Error loading sample ${sample_name}:`, error);
         }
     }
 
     load_midi_data(midi_data: MidiJson): void {
         this.midi_data = midi_data;
         this.reset_playback();
-        console.log(`[AudioManager] MIDI data loaded:`);
-        console.log(`  - Number of tracks: ${midi_data.tracks.length}`);
-        console.log(`  - PPQ: ${midi_data.header.ppq}`);
-        console.log(`  - Number of tempo changes: ${midi_data.header.tempos.length}`);
+        log_message(`[AudioManager] MIDI data loaded:`);
+        log_message(`  - Number of tracks: ${midi_data.tracks.length}`);
+        log_message(`  - PPQ: ${midi_data.header.ppq}`);
+        log_message(`  - Number of tempo changes: ${midi_data.header.tempos.length}`);
 
         let total_notes = 0;
         for (let i = 0; i < midi_data.tracks.length; i++) {
@@ -183,18 +184,18 @@ export class AudioManager {
             if (track) {
                 const note_count = track.notes.length;
                 total_notes += note_count;
-                console.log(`  - Track ${i}: ${note_count} notes`);
+                log_message(`  - Track ${i}: ${note_count} notes`);
             }
         }
-        console.log(`  - Total notes: ${total_notes}`);
+        log_message(`  - Total notes: ${total_notes}`);
 
         for (const tempo of midi_data.header.tempos) {
-            console.log(`  - Tempo at ticks ${tempo.ticks}: ${tempo.bpm.toFixed(2)} BPM`);
+            log_message(`  - Tempo at ticks ${tempo.ticks}: ${tempo.bpm.toFixed(2)} BPM`);
         }
     }
 
     clear_midi_data(): void {
-        console.log(`[AudioManager] Clearing MIDI data (previously had ${this.midi_data?.tracks.length ?? 0} tracks)`);
+        log_message(`[AudioManager] Clearing MIDI data (previously had ${this.midi_data?.tracks.length ?? 0} tracks)`);
         this.midi_data = null;
         this.reset_playback();
     }
@@ -205,7 +206,7 @@ export class AudioManager {
         this.last_played_note_index = -1;
         this.track_pointers = new Array(this.midi_data?.tracks.length ?? 0).fill(0);
         this.played_notes.clear();
-        console.log(
+        log_message(
             `[AudioManager] Playback reset - cleared ${previous_count} played notes (was at index ${previous_index})`,
         );
     }
@@ -255,7 +256,7 @@ export class AudioManager {
                             }
                         } else {
                             notes_skipped_this_update++;
-                            console.log(
+                            log_message(
                                 `[AudioManager] Skipping note (early release): MIDI ${note.midi} at time ${note.time.toFixed(3)}s`,
                             );
                         }
@@ -272,7 +273,7 @@ export class AudioManager {
         }
 
         if (notes_played_this_update > 0 || notes_skipped_this_update > 0) {
-            console.log(
+            log_message(
                 `[AudioManager] Update at ${current_time.toFixed(3)}s: played ${notes_played_this_update}, skipped ${notes_skipped_this_update} notes, total played ${this.played_notes.size}`,
             );
         }
@@ -287,7 +288,7 @@ export class AudioManager {
             }
         }
         if (cleaned_count > 0) {
-            console.log(`[AudioManager] Cleaned up ${cleaned_count} old notes from cache`);
+            log_message(`[AudioManager] Cleaned up ${cleaned_count} old notes from cache`);
         }
 
         return played_note_ids;
@@ -312,7 +313,7 @@ export class AudioManager {
 
     play_note_by_midi(midi_number: number): void {
         if (!this.is_initialized || !this.audio_context) {
-            console.warn(`[AudioManager] Cannot play MIDI ${midi_number}: audio not initialized`);
+            log_warning(`[AudioManager] Cannot play MIDI ${midi_number}: audio not initialized`);
             return;
         }
 
@@ -322,12 +323,12 @@ export class AudioManager {
 
         const note_name = MIDI_TO_NOTE[midi_number];
         if (!note_name) {
-            console.warn(`[AudioManager] No note name mapping for MIDI ${midi_number}`);
+            log_warning(`[AudioManager] No note name mapping for MIDI ${midi_number}`);
             return;
         }
 
         const file_name = note_name + '.mp3';
-        console.log(
+        log_message(
             `[AudioManager] play_note_by_midi: MIDI ${midi_number} -> note "${note_name}" -> file "${file_name}"`,
         );
         this.play_sample(file_name);
@@ -361,7 +362,7 @@ export class AudioManager {
 
         const buffer = this.audio_buffers.get(sample_name);
         if (!buffer) {
-            console.warn(`Sample not found: ${sample_name}`);
+            log_warning(`Sample not found: ${sample_name}`);
             return;
         }
 
@@ -377,7 +378,7 @@ export class AudioManager {
 
             source.start(0);
         } catch (error) {
-            console.warn(`Error playing sample ${sample_name}:`, error);
+            log_warning(`Error playing sample ${sample_name}:`, error);
         }
     }
 

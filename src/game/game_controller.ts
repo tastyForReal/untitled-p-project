@@ -1,3 +1,4 @@
+import { log_error } from './logger.js';
 import { GPUContext } from '../renderers/gpu_context.js';
 import { Renderer } from '../renderers/renderer.js';
 import { GameStateManager, GameConfig, DEFAULT_GAME_CONFIG } from './game_state.js';
@@ -27,13 +28,13 @@ export class GameController {
     async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
         const gpu_initialized = await this.gpu_context.initialize(canvas);
         if (!gpu_initialized) {
-            console.error('Failed to initialize WebGPU');
+            log_error('Failed to initialize WebGPU');
             return false;
         }
 
         const renderer_initialized = await this.renderer.initialize();
         if (!renderer_initialized) {
-            console.error('Failed to initialize renderer');
+            log_error('Failed to initialize renderer');
             return false;
         }
 

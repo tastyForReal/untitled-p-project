@@ -1,3 +1,4 @@
+import { log_error } from '../game/logger.js';
 import { GPUContext } from './gpu_context.js';
 import { BMFontData, parse_bm_font, calculate_scale_for_width, calculate_text_width } from './bm_font_parser.js';
 import { SCREEN_CONFIG } from '../game/types.js';
@@ -38,7 +39,7 @@ export class BMFontRenderer {
         try {
             const font_response = await fetch(font_url);
             if (!font_response.ok) {
-                console.error(`Failed to load font file: ${font_url}`);
+                log_error(`Failed to load font file: ${font_url}`);
                 return false;
             }
             const font_content = await font_response.text();
@@ -46,7 +47,7 @@ export class BMFontRenderer {
 
             const texture_filename = this.font_data.page_file;
             if (!texture_filename) {
-                console.error('No texture file specified in .fnt file');
+                log_error('No texture file specified in .fnt file');
                 return false;
             }
 
@@ -57,7 +58,7 @@ export class BMFontRenderer {
 
             const texture_response = await fetch(texture_url);
             if (!texture_response.ok) {
-                console.error(`Failed to load font texture: ${texture_url}`);
+                log_error(`Failed to load font texture: ${texture_url}`);
                 return false;
             }
             const texture_blob = await texture_response.blob();
@@ -90,7 +91,7 @@ export class BMFontRenderer {
             this.font_loaded = true;
             return true;
         } catch (error) {
-            console.error('Failed to initialize BMFontRenderer:', error);
+            log_error('Failed to initialize BMFontRenderer:', error);
             return false;
         }
     }

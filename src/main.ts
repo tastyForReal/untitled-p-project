@@ -1,3 +1,4 @@
+import { log_error } from './game/logger.js';
 import { app, BrowserWindow, screen } from 'electron';
 import * as path from 'path';
 
@@ -30,7 +31,7 @@ function create_window(): void {
     const is_bot_active = process.argv.includes('--bot');
 
     main_window.loadFile(html_path, { query: is_bot_active ? { bot: 'true' } : {} }).catch(error => {
-        console.error('Failed to load HTML file:', error);
+        log_error('Failed to load HTML file:', error);
     });
 
     main_window.setMenuBarVisibility(false);

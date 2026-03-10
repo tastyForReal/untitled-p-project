@@ -1,3 +1,4 @@
+import { log_message, log_warning } from '../game/logger.js';
 import { GPUContext } from './gpu_context.js';
 import { BMFontRenderer } from './bm_font_renderer.js';
 import { RowData, TileData, ParticleData, SCREEN_CONFIG, RowType } from '../game/types.js';
@@ -189,9 +190,9 @@ export class Renderer {
         );
 
         if (!font_initialized) {
-            console.warn('Failed to initialize BMFont renderer, text will not be displayed');
+            log_warning('Failed to initialize BMFont renderer, text will not be displayed');
         } else {
-            console.log('BMFont renderer initialized successfully');
+            log_message('BMFont renderer initialized successfully');
         }
 
         const sprite_initialized = await this.sprite_renderer.initialize(
@@ -199,9 +200,9 @@ export class Renderer {
             './assets/images/gameplay/1.png',
         );
         if (!sprite_initialized) {
-            console.warn('Failed to initialize SpriteRenderer');
+            log_warning('Failed to initialize SpriteRenderer');
         } else {
-            console.log('SpriteRenderer initialized successfully');
+            log_message('SpriteRenderer initialized successfully');
         }
 
         return true;

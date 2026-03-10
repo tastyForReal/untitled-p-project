@@ -1,3 +1,4 @@
+import { log_message } from './logger.js';
 import { MidiJson, MidiNote } from './midi_types.js';
 import { NoteIndicatorData, RowData, RowType, SCREEN_CONFIG } from './types.js';
 
@@ -108,7 +109,7 @@ export function build_note_indicators(
         });
     }
 
-    console.log(`[NoteIndicator] Built ${indicators.length} indicators from ${all_notes.length} notes`);
+    log_message(`[NoteIndicator] Built ${indicators.length} indicators from ${all_notes.length} notes`);
     return indicators;
 }
 

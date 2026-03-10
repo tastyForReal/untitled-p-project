@@ -1,3 +1,5 @@
+import { log_error } from '../game/logger.js';
+
 export class GPUContext {
     private device: GPUDevice | null = null;
     private context: GPUCanvasContext | null = null;
@@ -6,14 +8,14 @@ export class GPUContext {
 
     async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
         if (!navigator.gpu) {
-            console.error('WebGPU not supported');
+            log_error('WebGPU not supported');
             return false;
         }
 
         try {
             const adapter = await navigator.gpu.requestAdapter();
             if (!adapter) {
-                console.error('Failed to get GPU adapter');
+                log_error('Failed to get GPU adapter');
                 return false;
             }
 
@@ -22,7 +24,7 @@ export class GPUContext {
             this.context = canvas.getContext('webgpu');
 
             if (!this.context) {
-                console.error('Failed to get WebGPU context');
+                log_error('Failed to get WebGPU context');
                 return false;
             }
 
@@ -35,7 +37,7 @@ export class GPUContext {
 
             return true;
         } catch (error) {
-            console.error('WebGPU initialization error:', error);
+            log_error('WebGPU initialization error:', error);
             return false;
         }
     }

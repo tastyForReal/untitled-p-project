@@ -63,7 +63,7 @@ export class InputHandler {
 
             if (lane_index < 0 || lane_index >= SCREEN_CONFIG.COLUMN_COUNT) return;
 
-            this.on_lane_input(lane_index, screen_x, screen_y, is_down, InputType.MOUSE_CLICK);
+            this.on_lane_input(lane_index, screen_x, screen_y, is_down, InputType.Mouse);
         };
 
         this.canvas.addEventListener('mousedown', e => handle_pointer_event(e, true));
@@ -93,7 +93,7 @@ export class InputHandler {
                     const screen_x = lane_index * column_width + column_width / 2;
                     const screen_y = SCREEN_CONFIG.HEIGHT / 2;
 
-                    this.on_lane_input(lane_index, screen_x, screen_y, true, InputType.KEYBOARD);
+                    this.on_lane_input(lane_index, screen_x, screen_y, true, InputType.Keyboard);
                 }
             }
         });
@@ -108,7 +108,7 @@ export class InputHandler {
                     const screen_x = lane_index * column_width + column_width / 2;
                     const screen_y = SCREEN_CONFIG.HEIGHT / 2;
 
-                    this.on_lane_input(lane_index, screen_x, screen_y, false, InputType.KEYBOARD);
+                    this.on_lane_input(lane_index, screen_x, screen_y, false, InputType.Keyboard);
                 }
             }
         });

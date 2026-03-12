@@ -5,7 +5,6 @@ import {
     RowType,
     TileData,
     SCREEN_CONFIG,
-    COLORS,
     NoteIndicatorData,
     MusicMetadata,
     RowTiming,
@@ -21,6 +20,7 @@ import { build_note_indicators, get_active_indicators } from './note_indicator.j
 import { ScoreManager } from './score_manager.js';
 import { ScoreData } from './score_types.js';
 import { initialize_logger, log_message } from './logger.js';
+import { Color } from '../graphics/color.js';
 
 export interface GameConfig {
     row_count: number;
@@ -40,7 +40,7 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
     const rows = generate_all_rows(config.row_count);
 
     return {
-        state: GameState.PAUSED,
+        state: GameState.Paused,
         rows,
         particles: [],
         total_completed_height: 0,
@@ -66,7 +66,7 @@ export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONF
         current_dt_press_count: 0,
         skipped_midi_notes: [],
         level_row_timings: [],
-        game_mode: GameMode.ONE_ROUND,
+        game_mode: GameMode.OneRound,
         endless_config: null,
         loop_count: 0,
         current_filename: 'Untitled P Project',
@@ -115,7 +115,7 @@ function determine_double_lanes(preceding_row: RowData | null): [number, number]
         return Math.random() < 0.5 ? [0, 2] : [1, 3];
     }
 
-    if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
+    if (preceding_row.row_type === RowType.SingleTileRow || preceding_row.row_type === RowType.StartingTileRow) {
         const single_lane = preceding_row.tiles[0]?.lane_index;
         if (single_lane === undefined) {
             return Math.random() < 0.5 ? [0, 2] : [1, 3];
@@ -128,7 +128,7 @@ function determine_double_lanes(preceding_row: RowData | null): [number, number]
         }
     }
 
-    if (preceding_row.row_type === RowType.DOUBLE) {
+    if (preceding_row.row_type === RowType.DoubleTileRow) {
         const occupied_lanes = preceding_row.tiles.map(r => r.lane_index);
 
         if (occupied_lanes.includes(0) && occupied_lanes.includes(2)) {
@@ -146,11 +146,11 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
 
     const start_y = SCREEN_CONFIG.HEIGHT - SCREEN_CONFIG.BASE_ROW_HEIGHT * 2;
     const start_lane = Math.floor(Math.random() * 4);
-    const start_tile = create_tile(start_lane, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0);
+    const start_tile = create_tile(start_lane, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, Color.Yellow, 1.0);
 
     rows.push({
         row_index: 0,
-        row_type: RowType.START,
+        row_type: RowType.StartingTileRow,
         height_multiplier: 1,
         y_position: start_y,
         height: SCREEN_CONFIG.BASE_ROW_HEIGHT,
@@ -172,10 +172,10 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
         const preceding_row = rows[rows.length - 1];
         let tiles: TileData[] = [];
 
-        if (row_data.type === RowType.SINGLE) {
+        if (row_data.type === RowType.SingleTileRow) {
             let lane: number;
 
-            if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
+            if (preceding_row && preceding_row.row_type === RowType.DoubleTileRow) {
                 const occupied = preceding_row.tiles.map(r => r.lane_index);
                 const empty_lanes = [0, 1, 2, 3].filter(s => !occupied.includes(s));
                 const chosen_lane = empty_lanes[Math.floor(Math.random() * empty_lanes.length)];
@@ -186,11 +186,11 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
                 lane = chosen_lane ?? 0;
             }
 
-            tiles = [create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0)];
+            tiles = [create_tile(lane, current_y, row_height, Color.Black, 1.0)];
             last_single_lane = lane;
-        } else if (row_data.type === RowType.DOUBLE) {
+        } else if (row_data.type === RowType.DoubleTileRow) {
             const lanes = determine_double_lanes(preceding_row ?? null);
-            tiles = lanes.map(lane => create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0));
+            tiles = lanes.map(lane => create_tile(lane, current_y, row_height, Color.Black, 1.0));
         }
 
         rows.push({
@@ -200,7 +200,7 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
             y_position: current_y,
             height: row_height,
             tiles,
-            is_completed: row_data.type === RowType.EMPTY,
+            is_completed: row_data.type === RowType.EmptyRow,
             is_active: false,
         });
     }
@@ -243,7 +243,7 @@ export class GameStateManager {
 
     load_level(
         level_data: LevelData,
-        game_mode: GameMode = GameMode.ONE_ROUND,
+        game_mode: GameMode = GameMode.OneRound,
         endless_config: EndlessConfig | null = null,
         filename: string = '',
     ): void {
@@ -272,7 +272,7 @@ export class GameStateManager {
         const level_row_timings = calculate_level_row_timings(rows, level_data.musics);
 
         this.game_data = {
-            state: GameState.PAUSED,
+            state: GameState.Paused,
             rows,
             particles: [],
             total_completed_height: 0,
@@ -286,7 +286,7 @@ export class GameStateManager {
             completed_rows_count: 0,
 
             current_tps:
-                game_mode === GameMode.ENDLESS_CHALLENGE && endless_config?.starting_tps !== undefined
+                game_mode === GameMode.Survival && endless_config?.starting_tps !== undefined
                     ? endless_config.starting_tps
                     : initial_tps,
             current_music_index: 0,
@@ -362,7 +362,7 @@ export class GameStateManager {
     load_custom_rows(level_rows: RowTypeResult[]): void {
         const rows = generate_rows_from_level_data(level_rows);
         this.game_data = {
-            state: GameState.PAUSED,
+            state: GameState.Paused,
             rows,
             particles: [],
             total_completed_height: 0,
@@ -386,7 +386,7 @@ export class GameStateManager {
             current_dt_press_count: 0,
             skipped_midi_notes: [],
             level_row_timings: [],
-            game_mode: GameMode.ONE_ROUND,
+            game_mode: GameMode.OneRound,
             endless_config: null,
             loop_count: 0,
             current_filename: '',
@@ -399,35 +399,35 @@ export class GameStateManager {
     }
 
     start(): void {
-        if (this.game_data.state === GameState.PAUSED) {
-            this.game_data.state = GameState.PLAYING;
+        if (this.game_data.state === GameState.Paused) {
+            this.game_data.state = GameState.Resumed;
         }
     }
 
     toggle_pause(allow_with_bot: boolean = false): void {
         if (this.config.is_bot_active && !allow_with_bot) return;
 
-        if (this.game_data.state === GameState.PLAYING) {
-            this.game_data.state = GameState.PAUSED;
-        } else if (this.game_data.state === GameState.PAUSED) {
-            this.game_data.state = GameState.PLAYING;
+        if (this.game_data.state === GameState.Resumed) {
+            this.game_data.state = GameState.Paused;
+        } else if (this.game_data.state === GameState.Paused) {
+            this.game_data.state = GameState.Resumed;
         }
     }
 
     is_paused(): boolean {
         return (
-            this.game_data.state === GameState.PAUSED ||
-            this.game_data.state === GameState.GAME_OVER_MISCLICKED ||
-            this.game_data.state === GameState.GAME_OVER_OUT_OF_BOUNDS ||
-            this.game_data.state === GameState.GAME_WON
+            this.game_data.state === GameState.Paused ||
+            this.game_data.state === GameState.TileMisclicked ||
+            this.game_data.state === GameState.TileFellOffScreen ||
+            this.game_data.state === GameState.Cleared
         );
     }
 
     is_game_over(): boolean {
         return (
-            this.game_data.state === GameState.GAME_OVER_MISCLICKED ||
-            this.game_data.state === GameState.GAME_OVER_OUT_OF_BOUNDS ||
-            this.game_data.state === GameState.GAME_WON
+            this.game_data.state === GameState.TileMisclicked ||
+            this.game_data.state === GameState.TileFellOffScreen ||
+            this.game_data.state === GameState.Cleared
         );
     }
 
@@ -436,7 +436,7 @@ export class GameStateManager {
     }
 
     is_start_tile_pressed(): boolean {
-        const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
+        const start_row = this.game_data.rows.find(r => r.row_type === RowType.StartingTileRow);
         return start_row?.is_completed ?? false;
     }
 
@@ -445,10 +445,7 @@ export class GameStateManager {
     }
 
     private update_challenge_tps(delta_time: number): void {
-        if (
-            this.game_data.game_mode === GameMode.ENDLESS_CHALLENGE &&
-            this.game_data.endless_config?.acceleration_rate
-        ) {
+        if (this.game_data.game_mode === GameMode.Survival && this.game_data.endless_config?.acceleration_rate) {
             this.game_data.current_tps += this.game_data.endless_config.acceleration_rate * delta_time;
         }
     }
@@ -456,7 +453,7 @@ export class GameStateManager {
     private check_and_update_music_for_row(row: RowData): boolean {
         const musics = this.game_data.musics_metadata;
         if (musics.length === 0) return false;
-        if (row.row_type === RowType.START) return false;
+        if (row.row_type === RowType.StartingTileRow) return false;
 
         const level_row_index = row.row_index - 1;
 
@@ -468,7 +465,7 @@ export class GameStateManager {
                     const previous_tps = this.game_data.current_tps;
                     this.game_data.current_music_index = i;
 
-                    if (this.game_data.game_mode !== GameMode.ENDLESS_CHALLENGE) {
+                    if (this.game_data.game_mode !== GameMode.Survival) {
                         this.game_data.current_tps = music.tps;
                         log_message(
                             `[GameState] Transitioned to section ${i}, TPS updating to ${music.tps.toFixed(3)}`,
@@ -547,7 +544,7 @@ export class GameStateManager {
     }
 
     private check_and_handle_endless_loop(): void {
-        if (this.game_data.game_mode === GameMode.ONE_ROUND) return;
+        if (this.game_data.game_mode === GameMode.OneRound) return;
         if (this.game_data.raw_level_rows.length === 0) return;
 
         const musics = this.game_data.musics_metadata;
@@ -599,9 +596,9 @@ export class GameStateManager {
             const preceding_row = current_rows[current_rows.length - 1];
             let tiles: TileData[] = [];
 
-            if (row_data.type === RowType.SINGLE) {
+            if (row_data.type === RowType.SingleTileRow) {
                 let lane: number;
-                if (preceding_row && preceding_row.row_type === RowType.DOUBLE) {
+                if (preceding_row && preceding_row.row_type === RowType.DoubleTileRow) {
                     const occupied = preceding_row.tiles.map(r => r.lane_index);
                     const empty_lanes = [0, 1, 2, 3].filter(s => !occupied.includes(s));
                     const chosen = empty_lanes[Math.floor(Math.random() * empty_lanes.length)];
@@ -611,11 +608,11 @@ export class GameStateManager {
                     const chosen = available[Math.floor(Math.random() * available.length)];
                     lane = chosen ?? 0;
                 }
-                tiles = [create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0)];
+                tiles = [create_tile(lane, current_y, row_height, Color.Black, 1.0)];
                 last_single_lane = lane;
-            } else if (row_data.type === RowType.DOUBLE) {
+            } else if (row_data.type === RowType.DoubleTileRow) {
                 const lanes = this.determine_double_lanes_from_row(preceding_row ?? null);
-                tiles = lanes.map(lane => create_tile(lane, current_y, row_height, COLORS.BLACK, 1.0));
+                tiles = lanes.map(lane => create_tile(lane, current_y, row_height, Color.Black, 1.0));
             }
 
             current_rows.push({
@@ -625,7 +622,7 @@ export class GameStateManager {
                 y_position: current_y,
                 height: row_height,
                 tiles,
-                is_completed: row_data.type === RowType.EMPTY,
+                is_completed: row_data.type === RowType.EmptyRow,
                 is_active: false,
             });
         }
@@ -639,12 +636,12 @@ export class GameStateManager {
             this.game_data.musics_metadata[this.game_data.musics_metadata.length - 1]?.tps ?? SCREEN_CONFIG.DEFAULT_TPS;
 
         for (const music of original_musics) {
-            if (this.game_data.game_mode === GameMode.ENDLESS_FIXED) {
+            if (this.game_data.game_mode === GameMode.Endless) {
                 tps_accumulator += 0.333;
             }
             this.game_data.musics_metadata.push({
                 id: music.id,
-                tps: this.game_data.game_mode === GameMode.ENDLESS_FIXED ? tps_accumulator : music.tps,
+                tps: this.game_data.game_mode === GameMode.Endless ? tps_accumulator : music.tps,
                 bpm: music.bpm,
                 base_beats: music.base_beats,
                 start_row_index: music.start_row_index + new_loop_offset,
@@ -712,12 +709,12 @@ export class GameStateManager {
         if (preceding_row === null) {
             return Math.random() < 0.5 ? [0, 2] : [1, 3];
         }
-        if (preceding_row.row_type === RowType.SINGLE || preceding_row.row_type === RowType.START) {
+        if (preceding_row.row_type === RowType.SingleTileRow || preceding_row.row_type === RowType.StartingTileRow) {
             const single_lane = preceding_row.tiles[0]?.lane_index;
             if (single_lane === undefined) return Math.random() < 0.5 ? [0, 2] : [1, 3];
             return single_lane === 0 || single_lane === 2 ? [1, 3] : [0, 2];
         }
-        if (preceding_row.row_type === RowType.DOUBLE) {
+        if (preceding_row.row_type === RowType.DoubleTileRow) {
             const occupied = preceding_row.tiles.map(r => r.lane_index);
             return occupied.includes(0) && occupied.includes(2) ? [1, 3] : [0, 2];
         }
@@ -732,7 +729,7 @@ export class GameStateManager {
         const active_row = this.get_active_row();
         if (!active_row) return;
 
-        if (active_row.row_type === RowType.START) {
+        if (active_row.row_type === RowType.StartingTileRow) {
             return;
         }
 
@@ -782,7 +779,7 @@ export class GameStateManager {
 
     private update_active_row(): void {
         const current_active_row = this.get_active_row();
-        if (current_active_row && current_active_row.row_type !== RowType.START) {
+        if (current_active_row && current_active_row.row_type !== RowType.StartingTileRow) {
             const screen_y = current_active_row.y_position + this.game_data.scroll_offset;
             if (screen_y > SCREEN_CONFIG.HEIGHT) {
                 if (!current_active_row.is_completed) {
@@ -858,9 +855,9 @@ export class GameStateManager {
             return false;
         }
 
-        const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
+        const start_row = this.game_data.rows.find(r => r.row_type === RowType.StartingTileRow);
 
-        if (is_down && this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
+        if (is_down && this.game_data.state === GameState.Paused && start_row && !start_row.is_completed) {
             const start_rect = start_row.tiles[0];
             if (start_rect) {
                 const start_screen_y = start_rect.y + this.game_data.scroll_offset;
@@ -868,7 +865,7 @@ export class GameStateManager {
                     point_in_rect(screen_x, screen_y, start_rect.x, start_screen_y, start_rect.width, start_rect.height)
                 ) {
                     this.press_tile(start_rect, start_row, start_screen_y);
-                    this.game_data.state = GameState.PLAYING;
+                    this.game_data.state = GameState.Resumed;
                     return true;
                 }
             }
@@ -934,7 +931,7 @@ export class GameStateManager {
 
                     this.update_midi_playback_for_row(active_row);
 
-                    if (active_row.row_type !== RowType.START && !active_row.is_completed) {
+                    if (active_row.row_type !== RowType.StartingTileRow && !active_row.is_completed) {
                         this.play_tile_sound();
                     }
                 } else {
@@ -958,14 +955,14 @@ export class GameStateManager {
             return false;
         }
 
-        const start_row = this.game_data.rows.find(r => r.row_type === RowType.START);
+        const start_row = this.game_data.rows.find(r => r.row_type === RowType.StartingTileRow);
 
-        if (is_down && this.game_data.state === GameState.PAUSED && start_row && !start_row.is_completed) {
+        if (is_down && this.game_data.state === GameState.Paused && start_row && !start_row.is_completed) {
             const start_rect = start_row.tiles[0];
             if (start_rect && start_rect.lane_index === lane_index) {
                 const start_screen_y = start_rect.y + this.game_data.scroll_offset;
                 this.press_tile(start_rect, start_row, start_screen_y);
-                this.game_data.state = GameState.PLAYING;
+                this.game_data.state = GameState.Resumed;
                 return true;
             }
             return false;
@@ -1032,7 +1029,7 @@ export class GameStateManager {
 
                 this.update_midi_playback_for_row(active_row);
 
-                if (active_row.row_type !== RowType.START && !active_row.is_completed) {
+                if (active_row.row_type !== RowType.StartingTileRow && !active_row.is_completed) {
                     this.play_tile_sound();
                 }
                 return true;
@@ -1055,7 +1052,7 @@ export class GameStateManager {
         rect.is_pressed = true;
         rect.completed_at = performance.now();
 
-        if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
+        if (row.row_type !== RowType.StartingTileRow && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
             this.game_data.current_midi_time = 0;
             log_message(`[GameState] Game started via complete_tile (fallback for long tile)`);
@@ -1069,7 +1066,7 @@ export class GameStateManager {
             this.skip_notes_for_active_row();
         }
 
-        if (row.row_type !== RowType.START) {
+        if (row.row_type !== RowType.StartingTileRow) {
             this.score_manager.add_tile_score(rect, row, performance.now());
         }
 
@@ -1079,7 +1076,7 @@ export class GameStateManager {
     private press_tile(rect: TileData, row: RowData, screen_y: number): void {
         this.check_and_update_music_for_row(row);
 
-        if (row.row_type !== RowType.START && !this.game_data.has_game_started) {
+        if (row.row_type !== RowType.StartingTileRow && !this.game_data.has_game_started) {
             this.game_data.has_game_started = true;
             this.game_data.current_midi_time = 0;
             log_message(`[GameState] Game started via press_tile (normal tile)`);
@@ -1087,14 +1084,14 @@ export class GameStateManager {
 
         this.update_midi_playback_for_row(row);
 
-        if (row.row_type !== RowType.START && !row.is_completed) {
+        if (row.row_type !== RowType.StartingTileRow && !row.is_completed) {
             this.play_tile_sound();
         }
         this.complete_tile(rect, row, screen_y, false);
     }
 
     private check_row_completion(row: RowData): void {
-        if (row.row_type === RowType.EMPTY) {
+        if (row.row_type === RowType.EmptyRow) {
             row.is_completed = true;
             return;
         }
@@ -1114,7 +1111,7 @@ export class GameStateManager {
 
                 for (let i = old_index + 1; i < next_row.row_index; i++) {
                     const middle_row = this.game_data.rows[i];
-                    if (middle_row && middle_row.row_type === RowType.EMPTY) {
+                    if (middle_row && middle_row.row_type === RowType.EmptyRow) {
                         this.update_midi_playback_for_row(middle_row);
                     }
                 }
@@ -1129,9 +1126,9 @@ export class GameStateManager {
         const timing = this.game_data.level_row_timings[level_row_index];
         if (!timing) return;
 
-        const is_manual_interaction = row.row_type !== RowType.EMPTY;
+        const is_manual_interaction = row.row_type !== RowType.EmptyRow;
         const is_first_interaction_of_row =
-            row.row_type !== RowType.DOUBLE || this.game_data.current_dt_press_count === 0;
+            row.row_type !== RowType.DoubleTileRow || this.game_data.current_dt_press_count === 0;
 
         if (
             is_manual_interaction &&
@@ -1145,7 +1142,7 @@ export class GameStateManager {
         }
 
         this.game_data.current_dt_press_count++;
-        if (row.row_type === RowType.DOUBLE) {
+        if (row.row_type === RowType.DoubleTileRow) {
             if (this.game_data.current_dt_press_count === 1) {
                 this.game_data.target_time_for_next_note = timing.mid_time;
             } else {
@@ -1195,7 +1192,7 @@ export class GameStateManager {
         _screen_y: number,
         active_row: RowData,
     ): void {
-        this.game_data.state = GameState.GAME_OVER_MISCLICKED;
+        this.game_data.state = GameState.TileMisclicked;
 
         this.audio_manager.play_game_over_chord();
 
@@ -1206,7 +1203,7 @@ export class GameStateManager {
             y: active_row.y_position,
             width: column_width,
             height: active_row.height,
-            color: COLORS.RED,
+            color: Color.Red,
             opacity: 1.0,
             is_pressed: false,
             is_game_over_indicator: true,
@@ -1228,7 +1225,7 @@ export class GameStateManager {
     }
 
     private trigger_game_over_out_of_bounds(active_row: RowData): void {
-        this.game_data.state = GameState.GAME_OVER_OUT_OF_BOUNDS;
+        this.game_data.state = GameState.TileFellOffScreen;
 
         this.audio_manager.play_game_over_chord();
 
@@ -1266,8 +1263,8 @@ export class GameStateManager {
     }
 
     private trigger_game_won(): void {
-        if (this.game_data.state !== GameState.GAME_WON) {
-            this.game_data.state = GameState.GAME_WON;
+        if (this.game_data.state !== GameState.Cleared) {
+            this.game_data.state = GameState.Cleared;
             this.game_data.game_won_time = performance.now();
         }
     }
@@ -1314,7 +1311,7 @@ export class GameStateManager {
     }
 
     update_game_won(current_time: number): void {
-        if (this.game_data.state === GameState.GAME_WON && this.game_data.game_won_time !== null) {
+        if (this.game_data.state === GameState.Cleared && this.game_data.game_won_time !== null) {
             if (current_time - this.game_data.game_won_time >= 1000) {
                 this.reset();
             }
@@ -1361,7 +1358,7 @@ export class GameStateManager {
 
     get_score_data(): ScoreData {
         const data = this.score_manager.get_score_data();
-        if (this.game_data.game_mode === GameMode.ENDLESS_CHALLENGE) {
+        if (this.game_data.game_mode === GameMode.Survival) {
             return {
                 ...data,
                 animation: {

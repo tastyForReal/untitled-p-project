@@ -18,15 +18,15 @@ export function create_initial_score_data(): ScoreData {
 }
 
 export function calculate_tile_score(tile: TileData, row: RowData): number {
-    if (row.row_type === RowType.EMPTY) {
+    if (row.row_type === RowType.EmptyRow) {
         return 0;
     }
 
     if (row.height_multiplier === 1) {
-        if (row.row_type === RowType.SINGLE || row.row_type === RowType.START) {
+        if (row.row_type === RowType.SingleTileRow || row.row_type === RowType.StartingTileRow) {
             return 1;
         }
-        if (row.row_type === RowType.DOUBLE) {
+        if (row.row_type === RowType.DoubleTileRow) {
             return 2;
         }
         return 0;

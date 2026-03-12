@@ -1,10 +1,10 @@
-import { ParticleData, COLORS } from './types.js';
+import { ParticleData } from './types.js';
 import { Color } from '../graphics/color.js';
 
 const GRAVITY = 200;
 const TWO_PI = Math.PI * 2;
 
-export function create_particle(x: number, y: number, color: Color = COLORS.BLACK): ParticleData {
+export function create_particle(x: number, y: number, color: Color = Color.Black): ParticleData {
     const angle = Math.random() * TWO_PI;
     const speed = 50 + Math.random() * 150;
 

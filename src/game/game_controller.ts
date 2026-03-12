@@ -69,14 +69,14 @@ export class GameController {
         const state = this.game_state.get_game_data();
 
         if (
-            state.state === GameState.GAME_OVER_MISCLICKED ||
-            state.state === GameState.GAME_OVER_OUT_OF_BOUNDS ||
-            state.state === GameState.GAME_WON
+            state.state === GameState.TileMisclicked ||
+            state.state === GameState.TileFellOffScreen ||
+            state.state === GameState.Cleared
         ) {
             return;
         }
 
-        if (input_type === InputType.KEYBOARD) {
+        if (input_type === InputType.Keyboard) {
             this.game_state.handle_keyboard_input(lane_index, is_down);
         } else {
             this.game_state.handle_lane_input(lane_index, screen_x, screen_y, is_down);
@@ -171,7 +171,7 @@ export class GameController {
 
     load_level(
         level_data: LevelData,
-        game_mode: GameMode = GameMode.ONE_ROUND,
+        game_mode: GameMode = GameMode.OneRound,
         endless_config: EndlessConfig | null = null,
         filename: string = '',
     ): void {

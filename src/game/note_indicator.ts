@@ -81,7 +81,7 @@ export function build_note_indicators(
         const row = rows[target_row_info.row_index];
         if (!row) continue;
 
-        if (row.row_type === RowType.START || row.tiles.length === 0) {
+        if (row.row_type === RowType.StartingTileRow || row.tiles.length === 0) {
             continue;
         }
 

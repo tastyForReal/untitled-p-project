@@ -320,27 +320,27 @@ export function show_customize_dialog(level_data: LevelData): Promise<CustomizeD
             }
 
             if (selected_mode === 'one_round') {
-                game_mode = GameMode.ONE_ROUND;
+                game_mode = GameMode.OneRound;
                 custom_tps = tps_inputs.map(item =>
                     value_to_tps(parseFloat(item.input.value) || 3, item.metadata.base_beats),
                 );
             } else if (selected_mode === 'endless_fixed') {
-                game_mode = GameMode.ENDLESS_FIXED;
+                game_mode = GameMode.Endless;
                 custom_tps = tps_inputs.map(item =>
                     value_to_tps(parseFloat(item.input.value) || 3, item.metadata.base_beats),
                 );
                 endless_config = {
-                    mode: GameMode.ENDLESS_FIXED,
+                    mode: GameMode.Endless,
                     fixed_tps_values: custom_tps,
                 };
             } else {
-                game_mode = GameMode.ENDLESS_CHALLENGE;
+                game_mode = GameMode.Survival;
                 const first_music = level_data.musics[0];
                 const base_beats = first_music ? first_music.base_beats : 1;
                 const starting_tps = value_to_tps(parseFloat(starting_tps_input.value) || 3, base_beats);
                 const acceleration_rate = parseFloat(accel_input.value) || 0.1;
                 endless_config = {
-                    mode: GameMode.ENDLESS_CHALLENGE,
+                    mode: GameMode.Survival,
                     starting_tps,
                     acceleration_rate,
                 };

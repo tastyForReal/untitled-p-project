@@ -1,4 +1,5 @@
-import { RowType, RowData, TileData, SCREEN_CONFIG, COLORS } from './types.js';
+import { Color } from '../graphics/color.js';
+import { RowType, RowData, TileData, SCREEN_CONFIG } from './types.js';
 
 export const DEFAULT_ROW_COUNT = 100;
 
@@ -6,9 +7,9 @@ const COLUMN_WIDTH = SCREEN_CONFIG.WIDTH / SCREEN_CONFIG.COLUMN_COUNT;
 const LANE_X_POSITIONS: readonly number[] = [0, COLUMN_WIDTH, COLUMN_WIDTH * 2, COLUMN_WIDTH * 3] as const;
 
 const enum GeneratedRowType {
-    SINGLE = 0,
-    DOUBLE = 1,
-    EMPTY = 2,
+    SingleTileRow = 0,
+    DoubleTileRow = 1,
+    EmptyRow = 2,
 }
 
 const ROW_TYPE_WEIGHT_0 = 0.6;
@@ -40,7 +41,7 @@ export function create_tile(
     lane_index: number,
     y_position: number,
     height: number,
-    color: typeof COLORS.BLACK | typeof COLORS.YELLOW = COLORS.BLACK,
+    color: Color = Color.Black,
     opacity: number = 1.0,
 ): TileData {
     return {
@@ -62,11 +63,11 @@ export function create_start_row(): { row: RowData; lane_index: number } {
     return {
         row: {
             row_index: 0,
-            row_type: RowType.START,
+            row_type: RowType.StartingTileRow,
             height_multiplier: 1,
             y_position: start_y,
             height: SCREEN_CONFIG.BASE_ROW_HEIGHT,
-            tiles: [create_tile(lane_index, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, COLORS.YELLOW, 1.0)],
+            tiles: [create_tile(lane_index, start_y, SCREEN_CONFIG.BASE_ROW_HEIGHT, Color.Black, 1.0)],
             is_completed: false,
             is_active: true,
         },
@@ -81,7 +82,7 @@ function determine_double_lanes(preceding_row: RowData | null): [number, number]
 
     const row_type = preceding_row.row_type;
 
-    if (row_type === RowType.SINGLE || row_type === RowType.START) {
+    if (row_type === RowType.SingleTileRow || row_type === RowType.StartingTileRow) {
         const single_lane = preceding_row.tiles[0]?.lane_index;
         if (single_lane === undefined) {
             return Math.random() < 0.5 ? [0, 2] : [1, 3];
@@ -89,7 +90,7 @@ function determine_double_lanes(preceding_row: RowData | null): [number, number]
         return (single_lane & 1) === 0 ? [1, 3] : [0, 2];
     }
 
-    if (row_type === RowType.DOUBLE) {
+    if (row_type === RowType.DoubleTileRow) {
         const tiles = preceding_row.tiles;
         const tile0 = tiles[0];
         const tile1 = tiles[1];
@@ -107,9 +108,9 @@ function determine_double_lanes(preceding_row: RowData | null): [number, number]
 
 function get_random_row_type(): GeneratedRowType {
     const rand = Math.random();
-    if (rand < ROW_TYPE_THRESHOLD_1) return GeneratedRowType.SINGLE;
-    if (rand < ROW_TYPE_THRESHOLD_2) return GeneratedRowType.DOUBLE;
-    return GeneratedRowType.EMPTY;
+    if (rand < ROW_TYPE_THRESHOLD_1) return GeneratedRowType.SingleTileRow;
+    if (rand < ROW_TYPE_THRESHOLD_2) return GeneratedRowType.DoubleTileRow;
+    return GeneratedRowType.EmptyRow;
 }
 
 function generate_single_row(
@@ -121,7 +122,7 @@ function generate_single_row(
 ): { row: RowData; new_last_single_lane: number } {
     let lane: number;
 
-    if (preceding_row?.row_type === RowType.DOUBLE) {
+    if (preceding_row?.row_type === RowType.DoubleTileRow) {
         const tiles = preceding_row.tiles;
         const tile0 = tiles[0];
         const tile1 = tiles[1];
@@ -147,7 +148,7 @@ function generate_single_row(
     return {
         row: {
             row_index,
-            row_type: RowType.SINGLE,
+            row_type: RowType.SingleTileRow,
             height_multiplier: (height / SCREEN_CONFIG.BASE_ROW_HEIGHT) | 0,
             y_position,
             height,
@@ -169,7 +170,7 @@ function generate_double_row(
 
     return {
         row_index,
-        row_type: RowType.DOUBLE,
+        row_type: RowType.DoubleTileRow,
         height_multiplier: (height / SCREEN_CONFIG.BASE_ROW_HEIGHT) | 0,
         y_position,
         height,
@@ -182,7 +183,7 @@ function generate_double_row(
 function generate_empty_row(row_index: number, y_position: number, height: number): RowData {
     return {
         row_index,
-        row_type: RowType.EMPTY,
+        row_type: RowType.EmptyRow,
         height_multiplier: (height / SCREEN_CONFIG.BASE_ROW_HEIGHT) | 0,
         y_position,
         height,
@@ -209,11 +210,11 @@ export function generate_all_rows(row_count: number = DEFAULT_ROW_COUNT): RowDat
         const row_type = get_random_row_type();
         let row: RowData;
 
-        if (row_type === GeneratedRowType.SINGLE) {
+        if (row_type === GeneratedRowType.SingleTileRow) {
             const result = generate_single_row(i, current_y, row_height, preceding_row, last_single_lane);
             row = result.row;
             last_single_lane = result.new_last_single_lane;
-        } else if (row_type === GeneratedRowType.DOUBLE) {
+        } else if (row_type === GeneratedRowType.DoubleTileRow) {
             row = generate_double_row(i, current_y, row_height, preceding_row);
         } else {
             row = generate_empty_row(i, current_y, row_height);
@@ -231,7 +232,7 @@ export function find_active_row(rows: RowData[], scroll_offset: number): RowData
 
     for (let i = 0, len = rows.length; i < len; i++) {
         const row = rows[i];
-        if (row === undefined || row.is_completed || row.row_type === RowType.START) continue;
+        if (row === undefined || row.is_completed || row.row_type === RowType.StartingTileRow) continue;
 
         const screen_y = row.y_position + scroll_offset;
         if (screen_y + row.height > 0 && screen_y < screen_height) {
@@ -240,7 +241,7 @@ export function find_active_row(rows: RowData[], scroll_offset: number): RowData
     }
 
     const start_row = rows[0];
-    if (start_row !== undefined && start_row.row_type === RowType.START && !start_row.is_completed) {
+    if (start_row !== undefined && start_row.row_type === RowType.StartingTileRow && !start_row.is_completed) {
         return start_row;
     }
 

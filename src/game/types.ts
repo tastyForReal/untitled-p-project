@@ -11,18 +11,11 @@ export const SCREEN_CONFIG = {
     DEFAULT_TPS: 3,
 } as const;
 
-export const COLORS = {
-    BLACK: Color.black,
-    YELLOW: Color.yellow,
-    RED: Color.red,
-    WHITE: Color.white,
-} as const;
-
 export enum RowType {
-    SINGLE = 0,
-    DOUBLE = 1,
-    EMPTY = 2,
-    START = 3,
+    SingleTileRow = 0,
+    DoubleTileRow = 1,
+    EmptyRow = 2,
+    StartingTileRow = 3,
 }
 
 export interface RowTypeResult {
@@ -72,18 +65,18 @@ export interface ParticleData {
 }
 
 export enum GameState {
-    PAUSED = 0,
-    PLAYING = 1,
-    GAME_OVER_MISCLICKED = 2,
-    GAME_OVER_OUT_OF_BOUNDS = 3,
-    FLASHING = 4,
-    GAME_WON = 5,
+    Paused = 0,
+    Resumed = 1,
+    TileMisclicked = 2,
+    TileFellOffScreen = 3,
+    Flashing = 4,
+    Cleared = 5,
 }
 
 export enum GameMode {
-    ONE_ROUND = 0,
-    ENDLESS_FIXED = 1,
-    ENDLESS_CHALLENGE = 2,
+    OneRound = 0,
+    Endless = 1,
+    Survival = 2,
 }
 
 export interface EndlessConfig {
@@ -185,8 +178,8 @@ export interface MusicMetadata {
 }
 
 export enum InputType {
-    MOUSE_CLICK = 0,
-    KEYBOARD = 1,
+    Mouse = 0,
+    Keyboard = 1,
 }
 
 export interface InputEvent {

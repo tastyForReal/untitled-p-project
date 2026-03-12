@@ -1,6 +1,6 @@
 import { log_message, log_warning } from '../game/logger.js';
 import { GPUContext } from './gpu_context.js';
-import { BMFontRenderer } from './bm_font_renderer.js';
+import { BitmapFontRenderer } from './bitmap_font_renderer.js';
 import { RowData, TileData, ParticleData, SCREEN_CONFIG, RowType } from '../game/types.js';
 import { NoteIndicatorData } from '../game/note_indicator.js';
 import { ScoreData } from '../game/score_types.js';
@@ -37,7 +37,7 @@ const ANIM_FRAME_TIME = 1000 / 30;
 
 export class Renderer {
     private gpu_context: GPUContext;
-    private font_renderer: BMFontRenderer;
+    private font_renderer: BitmapFontRenderer;
     private tile_pipeline: GPURenderPipeline | null = null;
     private vertex_buffer: GPUBuffer | null = null;
     private uniform_buffer: GPUBuffer | null = null;
@@ -47,7 +47,7 @@ export class Renderer {
 
     constructor(gpu_context: GPUContext) {
         this.gpu_context = gpu_context;
-        this.font_renderer = new BMFontRenderer(gpu_context);
+        this.font_renderer = new BitmapFontRenderer(gpu_context);
         this.sprite_renderer = new SpriteRenderer(gpu_context);
     }
 
@@ -190,9 +190,9 @@ export class Renderer {
         );
 
         if (!font_initialized) {
-            log_warning('Failed to initialize BMFont renderer, text will not be displayed');
+            log_warning('Failed to initialize BitmapFont renderer, text will not be displayed');
         } else {
-            log_message('BMFont renderer initialized successfully');
+            log_message('BitmapFont renderer initialized successfully');
         }
 
         const sprite_initialized = await this.sprite_renderer.initialize(
@@ -307,7 +307,7 @@ export class Renderer {
 
                 tiles_to_render.push({ rect, row });
 
-                if (row.row_type === RowType.START) {
+                if (row.row_type === RowType.StartingTileRow) {
                     start_tile_data = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
                     if (rect.is_pressed) start_tile_pressed = true;
                 }
@@ -413,7 +413,8 @@ export class Renderer {
                 const rect_y = rect.y + scroll_offset;
                 if (rect_y + rect.height <= 0 || rect_y >= screen_height) continue;
 
-                const is_long_tile = row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT && row.row_type !== RowType.START;
+                const is_long_tile =
+                    row.height > SCREEN_CONFIG.BASE_ROW_HEIGHT && row.row_type !== RowType.StartingTileRow;
                 const effective_opacity = rect.flash_state ? rect.opacity * 0.5 : rect.opacity;
                 const row_bottom = rect_y + rect.height;
                 const scale = rect.width / 134;
@@ -691,7 +692,7 @@ export class Renderer {
         now: number,
         render_pass: GPURenderPassEncoder,
     ): void {
-        let frame_name = row.row_type === RowType.START ? 'tile_start.png' : 'tile_black.png';
+        let frame_name = row.row_type === RowType.StartingTileRow ? 'tile_start.png' : 'tile_black.png';
 
         if (rect.is_pressed && rect.completed_at !== null) {
             const frame_index = ((now - rect.completed_at) / ANIM_FRAME_TIME) | 0;
@@ -706,7 +707,7 @@ export class Renderer {
         });
     }
 
-    get_font_renderer(): BMFontRenderer {
+    get_font_renderer(): BitmapFontRenderer {
         return this.font_renderer;
     }
 

@@ -959,17 +959,17 @@ function parse_component(component: string): ParsedComponent {
         const group_content = group_match[2] ?? '';
 
         const duration = extract_all_letters(group_content);
-        const original_type = type_id === 5 ? RowType.DOUBLE : RowType.SINGLE;
+        const original_type = type_id === 5 ? RowType.DoubleTileRow : RowType.SingleTileRow;
         return { duration, original_type };
     }
 
     if (is_only_rest_letters(trimmed)) {
         const duration = extract_rest_letters(trimmed);
-        return { duration, original_type: RowType.EMPTY };
+        return { duration, original_type: RowType.EmptyRow };
     }
 
     const duration = extract_duration_letters(trimmed);
-    return { duration, original_type: RowType.SINGLE };
+    return { duration, original_type: RowType.SingleTileRow };
 }
 
 function split_score(score: string): string[] {
@@ -1055,7 +1055,7 @@ function build_timeline(components: ParsedComponent[]): TimelineEntry[] {
             start: current_time,
             end: current_time + comp.duration,
             index: i,
-            is_rest: comp.original_type === RowType.EMPTY,
+            is_rest: comp.original_type === RowType.EmptyRow,
         });
         current_time += comp.duration;
     }
@@ -1113,7 +1113,7 @@ function blend_tracks(primary_timeline: TimelineEntry[], secondary_scores: strin
 function create_result_entry(type: RowType, duration: number, unit_divisor: number): RowTypeResult {
     return {
         type,
-        height_multiplier: type === RowType.DOUBLE ? 1 : calculate_height_multiplier(duration, unit_divisor),
+        height_multiplier: type === RowType.DoubleTileRow ? 1 : calculate_height_multiplier(duration, unit_divisor),
     };
 }
 
@@ -1123,12 +1123,12 @@ function generate_results(
     unit_divisor: number,
 ): RowTypeResult[] {
     return components.map((comp, index) => {
-        if (comp.original_type === RowType.EMPTY) {
+        if (comp.original_type === RowType.EmptyRow) {
             if (blended_indices.has(index)) {
-                return create_result_entry(RowType.SINGLE, comp.duration, unit_divisor);
+                return create_result_entry(RowType.SingleTileRow, comp.duration, unit_divisor);
             }
             return {
-                type: RowType.EMPTY,
+                type: RowType.EmptyRow,
                 height_multiplier: comp.duration / unit_divisor,
             };
         }

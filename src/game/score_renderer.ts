@@ -1,4 +1,4 @@
-import { BMFontRenderer } from '../renderers/bm_font_renderer.js';
+import { BitmapFontRenderer } from '../renderers/bitmap_font_renderer.js';
 import { ScoreData, BonusLabel } from './score_types.js';
 import { SCREEN_CONFIG } from './types.js';
 
@@ -40,7 +40,7 @@ function calculate_score_y_position(): number {
 }
 
 function render_score_counter(
-    font_renderer: BMFontRenderer,
+    font_renderer: BitmapFontRenderer,
     score_data: ScoreData,
     render_pass: GPURenderPassEncoder,
 ): void {
@@ -78,7 +78,7 @@ function render_score_counter(
 }
 
 function render_bonus_label(
-    font_renderer: BMFontRenderer,
+    font_renderer: BitmapFontRenderer,
     label: BonusLabel,
     scroll_offset: number,
     render_pass: GPURenderPassEncoder,
@@ -110,7 +110,7 @@ function render_bonus_label(
 }
 
 function render_bonus_labels(
-    font_renderer: BMFontRenderer,
+    font_renderer: BitmapFontRenderer,
     score_data: ScoreData,
     scroll_offset: number,
     render_pass: GPURenderPassEncoder,
@@ -121,9 +121,9 @@ function render_bonus_labels(
 }
 
 export class ScoreRenderer {
-    private font_renderer: BMFontRenderer;
+    private font_renderer: BitmapFontRenderer;
 
-    constructor(font_renderer: BMFontRenderer) {
+    constructor(font_renderer: BitmapFontRenderer) {
         this.font_renderer = font_renderer;
     }
 

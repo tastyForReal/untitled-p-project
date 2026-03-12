@@ -1,6 +1,11 @@
 import { log_error } from '../game/logger.js';
 import { GPUContext } from './gpu_context.js';
-import { BMFontData, parse_bm_font, calculate_scale_for_width, calculate_text_width } from './bm_font_parser.js';
+import {
+    BitmapFontData,
+    parse_bitmap_font,
+    calculate_scale_for_width,
+    calculate_text_width,
+} from './bitmap_font_parser.js';
 import { SCREEN_CONFIG } from '../game/types.js';
 
 interface TextVertex {
@@ -9,9 +14,9 @@ interface TextVertex {
     color: [number, number, number, number];
 }
 
-export class BMFontRenderer {
+export class BitmapFontRenderer {
     private gpu_context: GPUContext;
-    private font_data: BMFontData | null = null;
+    private font_data: BitmapFontData | null = null;
     private font_texture: GPUTexture | null = null;
     private font_sampler: GPUSampler | null = null;
     private text_pipeline: GPURenderPipeline | null = null;
@@ -43,7 +48,7 @@ export class BMFontRenderer {
                 return false;
             }
             const font_content = await font_response.text();
-            this.font_data = parse_bm_font(font_content);
+            this.font_data = parse_bitmap_font(font_content);
 
             const texture_filename = this.font_data.page_file;
             if (!texture_filename) {
@@ -91,7 +96,7 @@ export class BMFontRenderer {
             this.font_loaded = true;
             return true;
         } catch (error) {
-            log_error('Failed to initialize BMFontRenderer:', error);
+            log_error('Failed to initialize BitmapFontRenderer:', error);
             return false;
         }
     }
@@ -322,7 +327,7 @@ export class BMFontRenderer {
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
         });
 
-        if (this.vertex_buffer_pool.length < BMFontRenderer.MAX_POOL_SIZE) {
+        if (this.vertex_buffer_pool.length < BitmapFontRenderer.MAX_POOL_SIZE) {
             this.vertex_buffer_pool.push(new_buffer);
         }
 

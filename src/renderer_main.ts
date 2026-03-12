@@ -24,10 +24,13 @@ async function main(): Promise<void> {
     canvas.height = SCREEN_CONFIG.HEIGHT;
 
     const url_params = new URLSearchParams(window.location.search);
-    const is_bot_active = url_params.has('bot') || localStorage.getItem('bot') === 'true';
-    const is_red_note_indicator_enabled = false;
+    const enable_autoplay = url_params.has('bot') || localStorage.getItem('bot') === 'true';
+    const render_debug_indicators = false;
 
-    const game_controller = new GameController({ is_bot_active, is_red_note_indicator_enabled });
+    const game_controller = new GameController({
+        enable_autoplay,
+        render_debug_indicators,
+    });
 
     const initialized = await game_controller.initialize(canvas);
 

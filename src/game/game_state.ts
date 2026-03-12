@@ -22,17 +22,17 @@ import { initialize_logger, log_message } from './logger.js';
 import { Color } from '../graphics/color.js';
 
 export interface GameConfig {
+    enable_autoplay: boolean;
+    enable_logging: boolean;
+    render_debug_indicators: boolean;
     row_count: number;
-    is_bot_active: boolean;
-    is_red_note_indicator_enabled: boolean;
-    is_logging_enabled: boolean;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
+    enable_autoplay: false,
+    enable_logging: false,
+    render_debug_indicators: false,
     row_count: DEFAULT_ROW_COUNT,
-    is_bot_active: false,
-    is_red_note_indicator_enabled: false,
-    is_logging_enabled: false,
 };
 
 export function create_initial_game_state(config: GameConfig = DEFAULT_GAME_CONFIG): GameData {
@@ -215,7 +215,7 @@ export class GameStateManager {
 
     constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
         this.config = config;
-        initialize_logger(config.is_logging_enabled);
+        initialize_logger(config.enable_logging);
         this.game_data = create_initial_game_state(config);
         this.audio_manager = get_audio_manager();
         this.score_manager = new ScoreManager();
@@ -395,7 +395,7 @@ export class GameStateManager {
     }
 
     toggle_pause(allow_with_bot: boolean = false): void {
-        if (this.config.is_bot_active && !allow_with_bot) return;
+        if (this.config.enable_autoplay && !allow_with_bot) return;
 
         if (this.game_data.state === GameState.Resumed) {
             this.game_data.state = GameState.Paused;
@@ -712,7 +712,7 @@ export class GameStateManager {
     }
 
     update_bot(): void {
-        if (!this.config.is_bot_active || this.is_game_over()) {
+        if (!this.config.enable_autoplay || this.is_game_over()) {
             return;
         }
 
@@ -871,7 +871,7 @@ export class GameStateManager {
         const row_bottom = row_top + active_row.height;
         const pressed_rect = active_row.tiles.find(r => r.lane_index === lane_index);
 
-        if (this.config.is_bot_active) {
+        if (this.config.enable_autoplay) {
             if (is_down) {
                 if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
                     this.trigger_game_over_misclicked(lane_index, screen_x, screen_y, active_row);
@@ -967,7 +967,7 @@ export class GameStateManager {
 
         const pressed_rect = active_row.tiles.find(r => r.lane_index === lane_index);
 
-        if (this.config.is_bot_active) {
+        if (this.config.enable_autoplay) {
             if (is_down) {
                 if (!pressed_rect && row_bottom >= timing_zone) {
                     const column_width = SCREEN_CONFIG.WIDTH / 4;

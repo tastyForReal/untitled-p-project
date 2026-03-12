@@ -28,9 +28,9 @@ function create_window(): void {
     });
 
     const html_path = path.join(__dirname, '../index.html');
-    const is_bot_active = process.argv.includes('--bot');
+    const enable_autoplay = process.argv.includes('--bot');
 
-    main_window.loadFile(html_path, { query: is_bot_active ? { bot: 'true' } : {} }).catch(error => {
+    main_window.loadFile(html_path, { query: enable_autoplay ? { bot: 'true' } : {} }).catch(error => {
         log_error('Failed to load HTML file:', error);
     });
 

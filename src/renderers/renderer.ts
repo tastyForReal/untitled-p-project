@@ -1,7 +1,7 @@
 import { log_message, log_warning } from '../game/logger.js';
 import { GPUContext } from './gpu_context.js';
 import { BitmapFontRenderer } from './bitmap_font_renderer.js';
-import { RowData, TileData, ParticleData, SCREEN_CONFIG, RowType } from '../game/types.js';
+import { RowData, TileData, SCREEN_CONFIG, RowType } from '../game/types.js';
 import { NoteIndicatorData } from '../game/note_indicator.js';
 import { ScoreData } from '../game/score_types.js';
 import { ScoreRenderer } from '../game/score_renderer.js';
@@ -237,12 +237,6 @@ export class Renderer {
         return this.create_rect_vertices(x, 0, SCREEN_CONFIG.GRID_LINE_WIDTH, SCREEN_CONFIG.HEIGHT, GRID_LINE_COLOR);
     }
 
-    private create_particle_vertices(particle: ParticleData): RectangleVertex[] {
-        const color = color_to_rgba(particle.color, particle.opacity);
-        const half = particle.size * 0.5;
-        return this.create_rect_vertices(particle.x - half, particle.y - half, particle.size, particle.size, color);
-    }
-
     private create_note_indicator_vertices(indicator: NoteIndicatorData, scroll_offset: number): RectangleVertex[] {
         return this.create_rect_vertices(
             indicator.x,
@@ -255,7 +249,6 @@ export class Renderer {
 
     render(
         visible_rows: RowData[],
-        particles: ParticleData[],
         game_over_indicator: TileData | null,
         scroll_offset: number,
         note_indicators: NoteIndicatorData[] = [],
@@ -324,13 +317,6 @@ export class Renderer {
         const layer1_vertex_count = all_vertices.length;
 
         const screen_height = SCREEN_CONFIG.HEIGHT;
-        for (let i = 0; i < particles.length; i++) {
-            const particle = particles[i];
-            if (!particle) continue;
-            if (particle.y + particle.size * 0.5 > 0 && particle.y - particle.size * 0.5 < screen_height) {
-                all_vertices.push(...this.create_particle_vertices(particle));
-            }
-        }
 
         for (let i = 0; i < GRID_LINE_POSITIONS.length; i++) {
             all_vertices.push(...this.create_grid_line_vertices(GRID_LINE_POSITIONS[i]!));

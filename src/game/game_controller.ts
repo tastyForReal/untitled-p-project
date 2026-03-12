@@ -137,7 +137,6 @@ export class GameController {
     private update(delta_time: number, current_time: number): void {
         this.game_state.update_bot();
         this.game_state.update_scroll(delta_time);
-        this.game_state.update_particles(delta_time);
         this.game_state.update_game_over_flash(current_time);
         this.game_state.update_game_over_animation(current_time);
         this.game_state.update_game_won(current_time);
@@ -146,7 +145,6 @@ export class GameController {
 
     private render(): void {
         const visible_rows = this.game_state.get_visible_rows();
-        const particles = this.game_state.get_particle_system().get_particles();
         const game_over_indicator = this.game_state.get_game_over_tile();
         const scroll_offset = this.game_state.get_game_data().scroll_offset;
         const note_indicators = this.game_state.get_active_note_indicators();
@@ -154,7 +152,6 @@ export class GameController {
         const score_data = this.game_state.get_score_data();
         this.renderer.render(
             visible_rows,
-            particles,
             game_over_indicator,
             scroll_offset,
             note_indicators,

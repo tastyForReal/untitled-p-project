@@ -12,7 +12,6 @@ import {
     EndlessConfig,
 } from './types.js';
 import { generate_all_rows, is_row_visible, DEFAULT_ROW_COUNT, create_tile } from './row_generator.js';
-import { ParticleSystem } from './particle_system.js';
 import { point_in_rect } from '../utils/math_utils.js';
 import { RowTypeResult, LevelData } from './json_level_reader.js';
 import { get_audio_manager, AudioManager } from './audio_manager.js';
@@ -210,7 +209,6 @@ export function generate_rows_from_level_data(level_rows: RowTypeResult[]): RowD
 
 export class GameStateManager {
     private game_data: GameData;
-    private particle_system: ParticleSystem;
     private config: GameConfig;
     private audio_manager: AudioManager;
     private score_manager: ScoreManager;
@@ -219,7 +217,6 @@ export class GameStateManager {
         this.config = config;
         initialize_logger(config.is_logging_enabled);
         this.game_data = create_initial_game_state(config);
-        this.particle_system = new ParticleSystem();
         this.audio_manager = get_audio_manager();
         this.score_manager = new ScoreManager();
     }
@@ -228,13 +225,8 @@ export class GameStateManager {
         return this.game_data;
     }
 
-    get_particle_system(): ParticleSystem {
-        return this.particle_system;
-    }
-
     reset(): void {
         this.game_data = create_initial_game_state(this.config);
-        this.particle_system.clear();
         this.audio_manager.stop_all_samples();
         this.audio_manager.clear_midi_data();
         this.score_manager.reset();
@@ -354,7 +346,6 @@ export class GameStateManager {
             );
             log_message(`[GameState] Built ${this.game_data.note_indicators.length} note indicators`);
         }
-        this.particle_system.clear();
 
         this.score_manager.reset();
     }
@@ -393,7 +384,6 @@ export class GameStateManager {
             raw_level_rows: level_rows,
             loop_0_midi_notes: [],
         };
-        this.particle_system.clear();
         this.audio_manager.clear_midi_data();
         this.score_manager.reset();
     }
@@ -533,7 +523,7 @@ export class GameStateManager {
                     if (rect.progress >= rect.height) {
                         rect.progress = rect.height;
                         rect.is_holding = false;
-                        this.complete_tile(rect, active_row, rect.y + this.game_data.scroll_offset, false);
+                        this.complete_tile(rect, active_row, false);
                     }
                 }
             }
@@ -770,7 +760,7 @@ export class GameStateManager {
             if (row_top >= trigger_y) {
                 for (const rect of active_row.tiles) {
                     if (!rect.is_pressed) {
-                        this.press_tile(rect, active_row, rect.y + this.game_data.scroll_offset);
+                        this.press_tile(rect, active_row);
                     }
                 }
             }
@@ -864,7 +854,7 @@ export class GameStateManager {
                 if (
                     point_in_rect(screen_x, screen_y, start_rect.x, start_screen_y, start_rect.width, start_rect.height)
                 ) {
-                    this.press_tile(start_rect, start_row, start_screen_y);
+                    this.press_tile(start_rect, start_row);
                     this.game_data.state = GameState.Resumed;
                     return true;
                 }
@@ -895,7 +885,7 @@ export class GameStateManager {
                 pressed_rect.is_holding = false;
                 if (pressed_rect.progress < pressed_rect.height) {
                     pressed_rect.is_released_early = true;
-                    this.complete_tile(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset, true);
+                    this.complete_tile(pressed_rect, active_row, true);
                 }
             }
             return false;
@@ -939,7 +929,7 @@ export class GameStateManager {
                 }
                 return true;
             } else {
-                this.press_tile(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
+                this.press_tile(pressed_rect, active_row);
                 return true;
             }
         } else if (!pressed_rect && screen_y >= row_top && screen_y <= row_bottom) {
@@ -960,8 +950,7 @@ export class GameStateManager {
         if (is_down && this.game_data.state === GameState.Paused && start_row && !start_row.is_completed) {
             const start_rect = start_row.tiles[0];
             if (start_rect && start_rect.lane_index === lane_index) {
-                const start_screen_y = start_rect.y + this.game_data.scroll_offset;
-                this.press_tile(start_rect, start_row, start_screen_y);
+                this.press_tile(start_rect, start_row);
                 this.game_data.state = GameState.Resumed;
                 return true;
             }
@@ -995,7 +984,7 @@ export class GameStateManager {
                 pressed_rect.is_holding = false;
                 if (pressed_rect.progress < pressed_rect.height) {
                     pressed_rect.is_released_early = true;
-                    this.complete_tile(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset, true);
+                    this.complete_tile(pressed_rect, active_row, true);
                 }
             }
             return false;
@@ -1034,7 +1023,7 @@ export class GameStateManager {
                 }
                 return true;
             } else {
-                this.press_tile(pressed_rect, active_row, pressed_rect.y + this.game_data.scroll_offset);
+                this.press_tile(pressed_rect, active_row);
                 return true;
             }
         } else if (!pressed_rect) {
@@ -1048,7 +1037,7 @@ export class GameStateManager {
         return false;
     }
 
-    private complete_tile(rect: TileData, row: RowData, screen_y: number, early_release: boolean): void {
+    private complete_tile(rect: TileData, row: RowData, early_release: boolean): void {
         rect.is_pressed = true;
         rect.completed_at = performance.now();
 
@@ -1060,7 +1049,6 @@ export class GameStateManager {
 
         if (!early_release) {
             rect.opacity = 1.0;
-            this.particle_system.add_debris(rect.x, screen_y, rect.width, rect.height, 20);
         } else {
             log_message(`[GameState] Long tile released early, skipping notes for row ${row.row_index}`);
             this.skip_notes_for_active_row();
@@ -1073,7 +1061,7 @@ export class GameStateManager {
         this.check_row_completion(row);
     }
 
-    private press_tile(rect: TileData, row: RowData, screen_y: number): void {
+    private press_tile(rect: TileData, row: RowData): void {
         this.check_and_update_music_for_row(row);
 
         if (row.row_type !== RowType.StartingTileRow && !this.game_data.has_game_started) {
@@ -1087,7 +1075,7 @@ export class GameStateManager {
         if (row.row_type !== RowType.StartingTileRow && !row.is_completed) {
             this.play_tile_sound();
         }
-        this.complete_tile(rect, row, screen_y, false);
+        this.complete_tile(rect, row, false);
     }
 
     private check_row_completion(row: RowData): void {
@@ -1316,10 +1304,6 @@ export class GameStateManager {
                 this.reset();
             }
         }
-    }
-
-    update_particles(delta_time: number): void {
-        this.particle_system.update(delta_time);
     }
 
     get_visible_rows(): RowData[] {
